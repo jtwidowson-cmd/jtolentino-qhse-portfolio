@@ -56,6 +56,157 @@ function initThemeToggle() {
   });
 }
 
+// ---- Mobile hamburger nav ----
+function initMobileNav() {
+  const toggle = document.getElementById("nav-toggle");
+  const nav = document.getElementById("mobile-nav");
+  if (!toggle || !nav) return;
+
+  function close() {
+    nav.hidden = true;
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("aria-label", "Open menu");
+  }
+  function open() {
+    nav.hidden = false;
+    toggle.setAttribute("aria-expanded", "true");
+    toggle.setAttribute("aria-label", "Close menu");
+  }
+
+  toggle.addEventListener("click", () => {
+    if (nav.hidden) open(); else close();
+  });
+  nav.querySelectorAll("a").forEach((link) => link.addEventListener("click", close));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !nav.hidden) close();
+  });
+}
+
+// ---- Scroll-reveal animations ----
+function initRevealAnimations() {
+  const targets = document.querySelectorAll(".reveal");
+  if (!targets.length) return;
+
+  const prefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (prefersReduced || !("IntersectionObserver" in window)) {
+    targets.forEach((t) => t.classList.add("in-view"));
+    return;
+  }
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("in-view");
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.12, rootMargin: "0px 0px -40px 0px" }
+  );
+  targets.forEach((t) => observer.observe(t));
+}
+
+// ---- Hero network/particle background ----
+function initHeroParticles() {
+  const canvas = document.getElementById("hero-canvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const prefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  let width = 0, height = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let nodes = [];
+  let rafId = null;
+
+  function nodeCount() {
+    if (width < 560) return 22;
+    if (width < 900) return 36;
+    return 55;
+  }
+
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    width = rect.width;
+    height = rect.height;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = width + "px";
+    canvas.style.height = height + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    seed();
+  }
+
+  function seed() {
+    const count = nodeCount();
+    nodes = Array.from({ length: count }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      vx: (Math.random() - 0.5) * 0.25,
+      vy: (Math.random() - 0.5) * 0.25,
+    }));
+  }
+
+  function isDark() {
+    return document.documentElement.getAttribute("data-theme") !== "light";
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, width, height);
+    const lineColor = isDark() ? "109,117,246" : "71,80,214";
+    const dotColor = isDark() ? "144,152,255" : "71,80,214";
+    const maxDist = Math.min(150, width / 6);
+
+    nodes.forEach((n) => {
+      n.x += n.vx;
+      n.y += n.vy;
+      if (n.x < 0 || n.x > width) n.vx *= -1;
+      if (n.y < 0 || n.y > height) n.vy *= -1;
+    });
+
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dx = nodes[i].x - nodes[j].x;
+        const dy = nodes[i].y - nodes[j].y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < maxDist) {
+          ctx.strokeStyle = `rgba(${lineColor}, ${0.16 * (1 - dist / maxDist)})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(nodes[i].x, nodes[i].y);
+          ctx.lineTo(nodes[j].x, nodes[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+    nodes.forEach((n) => {
+      ctx.fillStyle = `rgba(${dotColor}, 0.55)`;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    if (!prefersReduced) rafId = requestAnimationFrame(draw);
+  }
+
+  resize();
+  window.addEventListener("resize", resize);
+
+  if (prefersReduced) {
+    draw(); // single static frame, no loop
+  } else {
+    draw();
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    } else if (!document.hidden && !prefersReduced && !rafId) {
+      draw();
+    }
+  });
+}
+
 // ---- Load and render profile ----
 async function loadProfile() {
   const { data, error } = await supabaseClient
@@ -118,8 +269,49 @@ async function loadSkills() {
   container.replaceChildren(...cards);
 }
 
+// ---- Certification detail modal ----
+function initCertModal() {
+  const backdrop = document.getElementById("cert-modal");
+  const closeBtn = document.getElementById("cert-modal-close");
+  if (!backdrop || !closeBtn) return null;
+
+  let lastFocused = null;
+
+  function close() {
+    backdrop.hidden = true;
+    if (lastFocused) lastFocused.focus();
+  }
+  function open(cert) {
+    lastFocused = document.activeElement;
+    document.getElementById("cert-modal-title").textContent = cert.name;
+    const body = document.getElementById("cert-modal-body");
+    const rows = [];
+    if (cert.issuer) rows.push(el("p", null, [el("strong", null, ["Issuer: "]), cert.issuer]));
+    if (cert.issue_date) rows.push(el("p", null, [el("strong", null, ["Date: "]), cert.issue_date]));
+    if (cert.credential_no) rows.push(el("p", null, [el("strong", null, ["Credential No.: "]), cert.credential_no]));
+    if (cert.framework) rows.push(el("p", null, [el("strong", null, ["Framework: "]), cert.framework]));
+    if (cert.verify_url) {
+      rows.push(el("p", null, [
+        el("strong", null, ["Verify: "]),
+        el("a", { href: cert.verify_url, target: "_blank", rel: "noopener noreferrer" }, [cert.verify_url]),
+      ]));
+    }
+    body.replaceChildren(...rows);
+    backdrop.hidden = false;
+    closeBtn.focus();
+  }
+
+  closeBtn.addEventListener("click", close);
+  backdrop.addEventListener("click", (event) => { if (event.target === backdrop) close(); });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !backdrop.hidden) close();
+  });
+
+  return { open, close };
+}
+
 // ---- Certifications ----
-async function loadCertifications() {
+async function loadCertifications(certModal) {
   const container = document.getElementById("certifications-list");
   const { data, error } = await supabaseClient
     .from("certifications")
@@ -138,18 +330,24 @@ async function loadCertifications() {
     const metaChildren = [metaParts];
     if (cert.credential_no) metaChildren.push(` · Credential No. ${cert.credential_no}`);
 
-    const li = el("li", null, [
+    const li = el("li", { class: "credential-card", tabindex: "0", role: "button", "aria-haspopup": "dialog" }, [
       el("div", { class: "card-title" }, [cert.name]),
       el("div", { class: "card-meta" }, metaChildren),
     ]);
 
-    if (cert.verify_url) {
-      const meta = li.querySelector(".card-meta");
-      meta.appendChild(document.createTextNode(" · "));
-      meta.appendChild(el("a", { href: cert.verify_url, target: "_blank", rel: "noopener noreferrer" }, ["Verify"]));
-    }
     if (cert.framework) {
       li.appendChild(el("div", { class: "card-framework" }, [cert.framework]));
+    }
+    li.appendChild(el("div", { class: "card-expand-hint" }, ["View details →"]));
+
+    if (certModal) {
+      li.addEventListener("click", () => certModal.open(cert));
+      li.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          certModal.open(cert);
+        }
+      });
     }
     return li;
   });
@@ -286,10 +484,14 @@ function initAccessForm() {
 // ---- Init ----
 document.getElementById("footer-year").textContent = new Date().getFullYear();
 initThemeToggle();
+initMobileNav();
+initHeroParticles();
 initAccessForm();
+const certModal = initCertModal();
 loadProfile();
 loadSkills();
-loadCertifications();
+loadCertifications(certModal);
 loadApprovals();
 loadEducation();
 loadProjects();
+initRevealAnimations();
