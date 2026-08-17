@@ -188,27 +188,38 @@ function initScrollSpy() {
   sections.forEach((section) => observer.observe(section));
 }
 
-// ---- Hero network/particle background ----
-function initHeroParticles() {
-  const canvas = document.getElementById("hero-canvas");
+// ---- Full-page ambient background animation ----
+// A lightweight, low-opacity backdrop suggesting connected systems, risk
+// monitoring, and engineering process control: a drifting blueprint grid,
+// diagonal industrial panels, hexagonal motifs, a connected node network,
+// small drifting particles, and occasional brighter "pulse" nodes.
+function initBackgroundAnimation() {
+  const canvas = document.getElementById("bg-canvas");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   const prefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   let width = 0, height = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
   let nodes = [];
+  let dust = [];
+  let hexagons = [];
+  let panels = [];
   let rafId = null;
+  let t = 0;
 
-  function nodeCount() {
-    if (width < 560) return 22;
-    if (width < 900) return 36;
-    return 55;
+  function counts() {
+    if (width < 560) return { nodes: 16, dust: 12, hex: 3 };
+    if (width < 1000) return { nodes: 28, dust: 20, hex: 5 };
+    return { nodes: 42, dust: 30, hex: 7 };
+  }
+
+  function isDark() {
+    return document.documentElement.getAttribute("data-theme") !== "light";
   }
 
   function resize() {
-    const rect = canvas.parentElement.getBoundingClientRect();
-    width = rect.width;
-    height = rect.height;
+    width = window.innerWidth;
+    height = window.innerHeight;
     canvas.width = width * dpr;
     canvas.height = height * dpr;
     canvas.style.width = width + "px";
@@ -218,30 +229,113 @@ function initHeroParticles() {
   }
 
   function seed() {
-    const count = nodeCount();
-    nodes = Array.from({ length: count }, () => ({
+    const c = counts();
+    nodes = Array.from({ length: c.nodes }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      vx: (Math.random() - 0.5) * 0.25,
-      vy: (Math.random() - 0.5) * 0.25,
+      vx: (Math.random() - 0.5) * 0.16,
+      vy: (Math.random() - 0.5) * 0.16,
+      pulse: 0,
     }));
+    dust = Array.from({ length: c.dust }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      vx: (Math.random() - 0.5) * 0.1,
+      vy: (Math.random() - 0.5) * 0.1,
+      r: 0.6 + Math.random() * 1.1,
+    }));
+    hexagons = Array.from({ length: c.hex }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      size: 26 + Math.random() * 42,
+      rotation: Math.random() * Math.PI,
+      spin: (Math.random() - 0.5) * 0.0004,
+    }));
+    panels = [
+      { x: width * 0.06, y: height * 0.1, w: width * 0.46, h: height * 0.5, angle: -0.12, phase: 0 },
+      { x: width * 0.56, y: height * 0.42, w: width * 0.42, h: height * 0.56, angle: 0.1, phase: 2.1 },
+      { x: width * 0.16, y: height * 0.6, w: width * 0.32, h: height * 0.36, angle: -0.07, phase: 4.2 },
+    ];
   }
 
-  function isDark() {
-    return document.documentElement.getAttribute("data-theme") !== "light";
+  function drawGrid(rgb) {
+    const cell = 64;
+    const offset = (t * 0.06) % cell; // very slow drift
+    ctx.strokeStyle = `rgba(${rgb}, 0.05)`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = -offset; x < width + cell; x += cell) {
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+    }
+    for (let y = -offset; y < height + cell; y += cell) {
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+    }
+    ctx.stroke();
   }
 
-  function draw() {
-    ctx.clearRect(0, 0, width, height);
-    const lineColor = isDark() ? "109,117,246" : "71,80,214";
-    const dotColor = isDark() ? "144,152,255" : "71,80,214";
-    const maxDist = Math.min(150, width / 6);
+  function drawPanels(rgb) {
+    panels.forEach((p) => {
+      const breathe = 0.025 + 0.015 * Math.sin(t * 0.006 + p.phase);
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.angle);
+      ctx.fillStyle = `rgba(${rgb}, ${breathe})`;
+      ctx.strokeStyle = `rgba(${rgb}, 0.08)`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.rect(0, 0, p.w, p.h);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  function drawHexagons(rgb) {
+    hexagons.forEach((h) => {
+      h.rotation += h.spin;
+      ctx.save();
+      ctx.translate(h.x, h.y);
+      ctx.rotate(h.rotation);
+      ctx.strokeStyle = `rgba(${rgb}, 0.09)`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i;
+        const px = Math.cos(angle) * h.size;
+        const py = Math.sin(angle) * h.size;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  function drawDust(rgb) {
+    dust.forEach((d) => {
+      d.x += d.vx;
+      d.y += d.vy;
+      if (d.x < 0) d.x = width; else if (d.x > width) d.x = 0;
+      if (d.y < 0) d.y = height; else if (d.y > height) d.y = 0;
+      ctx.fillStyle = `rgba(${rgb}, 0.35)`;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  function drawNetwork(lineRgb, dotRgb, glowRgb) {
+    const maxDist = Math.min(160, width / 6);
 
     nodes.forEach((n) => {
       n.x += n.vx;
       n.y += n.vy;
       if (n.x < 0 || n.x > width) n.vx *= -1;
       if (n.y < 0 || n.y > height) n.vy *= -1;
+      if (n.pulse <= 0 && Math.random() < 0.0009) n.pulse = 1; // occasional brighter node
+      if (n.pulse > 0) n.pulse *= 0.985;
     });
 
     for (let i = 0; i < nodes.length; i++) {
@@ -250,7 +344,7 @@ function initHeroParticles() {
         const dy = nodes[i].y - nodes[j].y;
         const dist = Math.hypot(dx, dy);
         if (dist < maxDist) {
-          ctx.strokeStyle = `rgba(${lineColor}, ${0.16 * (1 - dist / maxDist)})`;
+          ctx.strokeStyle = `rgba(${lineRgb}, ${0.14 * (1 - dist / maxDist)})`;
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.moveTo(nodes[i].x, nodes[i].y);
@@ -259,12 +353,40 @@ function initHeroParticles() {
         }
       }
     }
+
     nodes.forEach((n) => {
-      ctx.fillStyle = `rgba(${dotColor}, 0.55)`;
+      if (n.pulse > 0.02) {
+        const glowR = 11 * n.pulse;
+        const gradient = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, glowR);
+        gradient.addColorStop(0, `rgba(${glowRgb}, ${0.5 * n.pulse})`);
+        gradient.addColorStop(1, `rgba(${glowRgb}, 0)`);
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, glowR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = `rgba(${dotRgb}, ${0.5 + 0.4 * n.pulse})`;
       ctx.beginPath();
-      ctx.arc(n.x, n.y, 1.6, 0, Math.PI * 2);
+      ctx.arc(n.x, n.y, 1.5 + n.pulse * 1.8, 0, Math.PI * 2);
       ctx.fill();
     });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, width, height);
+    t += 1;
+
+    const dark = isDark();
+    const structureRgb = dark ? "109,117,246" : "71,80,214";
+    const lineRgb = dark ? "109,117,246" : "71,80,214";
+    const dotRgb = dark ? "144,152,255" : "71,80,214";
+    const glowRgb = dark ? "160,220,255" : "90,150,220";
+
+    drawGrid(structureRgb);
+    drawPanels(structureRgb);
+    drawHexagons(structureRgb);
+    drawDust(dotRgb);
+    drawNetwork(lineRgb, dotRgb, glowRgb);
 
     if (!prefersReduced) rafId = requestAnimationFrame(draw);
   }
@@ -272,11 +394,7 @@ function initHeroParticles() {
   resize();
   window.addEventListener("resize", resize);
 
-  if (prefersReduced) {
-    draw(); // single static frame, no loop
-  } else {
-    draw();
-  }
+  draw(); // always draw a first frame; loops only when motion isn't reduced
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden && rafId) {
@@ -688,7 +806,7 @@ function initAccessForm() {
 document.getElementById("footer-year").textContent = new Date().getFullYear();
 initThemeToggle();
 initMobileNav();
-initHeroParticles();
+initBackgroundAnimation();
 initTypingEffect();
 initScrollSpy();
 initAccessForm();
