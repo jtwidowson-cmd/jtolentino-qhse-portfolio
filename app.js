@@ -34,6 +34,28 @@ function showEmptyState(container, message) {
   container.replaceChildren(el("p", { class: "empty-state" }, [message]));
 }
 
+// ---- Theme toggle (dark by default, remembers the visitor's choice) ----
+function initThemeToggle() {
+  const root = document.documentElement;
+  const toggle = document.getElementById("theme-toggle");
+  if (!toggle) return;
+
+  let saved = null;
+  try { saved = window.localStorage.getItem("theme"); } catch (_e) { /* storage may be unavailable */ }
+  const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+  const initial = saved || (prefersLight ? "light" : "dark");
+  root.setAttribute("data-theme", initial);
+  toggle.setAttribute("aria-pressed", String(initial === "light"));
+
+  toggle.addEventListener("click", () => {
+    const next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+    root.setAttribute("data-theme", next);
+    toggle.setAttribute("aria-pressed", String(next === "light"));
+    toggle.setAttribute("aria-label", next === "light" ? "Switch to dark theme" : "Switch to light theme");
+    try { window.localStorage.setItem("theme", next); } catch (_e) { /* ignore */ }
+  });
+}
+
 // ---- Load and render profile ----
 async function loadProfile() {
   const { data, error } = await supabaseClient
@@ -54,6 +76,8 @@ async function loadProfile() {
   setText("hero-bio", data.bio);
   setText("about-location", data.location, "—");
   setText("about-experience", data.years_experience, "—");
+  setText("about-location-hero", data.location, "—");
+  if (data.years_experience) setText("stat-years", data.years_experience);
 
   const linkedinNode = document.getElementById("about-linkedin");
   if (linkedinNode && data.linkedin_url) {
@@ -106,6 +130,8 @@ async function loadCertifications() {
     showEmptyState(container, "Certifications coming soon.");
     return;
   }
+
+  setText("stat-certs", String(data.length));
 
   const items = data.map((cert) => {
     const metaParts = [cert.issuer, cert.issue_date].filter(Boolean).join(" — ");
@@ -184,6 +210,8 @@ async function loadProjects() {
     return;
   }
 
+  setText("stat-projects", String(data.length));
+
   const cards = data.map((project) => {
     const card = el("div", { class: "project-card" }, [
       el("h3", null, [project.name]),
@@ -257,6 +285,7 @@ function initAccessForm() {
 
 // ---- Init ----
 document.getElementById("footer-year").textContent = new Date().getFullYear();
+initThemeToggle();
 initAccessForm();
 loadProfile();
 loadSkills();
