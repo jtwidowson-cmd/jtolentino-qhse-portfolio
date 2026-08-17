@@ -107,6 +107,87 @@ function initRevealAnimations() {
   targets.forEach((t) => observer.observe(t));
 }
 
+// ---- Hero typing effect (cycles through role titles) ----
+function initTypingEffect() {
+  const node = document.getElementById("typing-text");
+  if (!node) return;
+
+  const roles = [
+    "IRCA Lead Auditor",
+    "RTITB CT Instructor",
+    "Abrasive Wheels Instructor",
+    "Working at Heights Instructor",
+    "EPC & Construction HSE Professional",
+    "Oil & Gas Safety Professional",
+  ];
+
+  const prefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (prefersReduced) {
+    node.textContent = roles[0];
+    return;
+  }
+
+  let roleIndex = 0;
+  let charIndex = 0;
+  let deleting = false;
+
+  function tick() {
+    const current = roles[roleIndex];
+
+    if (!deleting) {
+      charIndex++;
+      node.textContent = current.slice(0, charIndex);
+      if (charIndex === current.length) {
+        deleting = true;
+        setTimeout(tick, 1500);
+        return;
+      }
+      setTimeout(tick, 55);
+    } else {
+      charIndex--;
+      node.textContent = current.slice(0, charIndex);
+      if (charIndex === 0) {
+        deleting = false;
+        roleIndex = (roleIndex + 1) % roles.length;
+        setTimeout(tick, 300);
+        return;
+      }
+      setTimeout(tick, 30);
+    }
+  }
+
+  tick();
+}
+
+// ---- Scroll-spy: highlight the active nav link based on visible section ----
+function initScrollSpy() {
+  const navLinks = document.querySelectorAll('.main-nav a[data-section]');
+  if (!navLinks.length || !("IntersectionObserver" in window)) return;
+
+  const linkMap = new Map();
+  navLinks.forEach((link) => linkMap.set(link.getAttribute("data-section"), link));
+
+  const sections = [...linkMap.keys()]
+    .map((id) => document.getElementById(id))
+    .filter(Boolean);
+  if (!sections.length) return;
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        const link = linkMap.get(entry.target.id);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          navLinks.forEach((l) => l.classList.remove("active"));
+          link.classList.add("active");
+        }
+      });
+    },
+    { rootMargin: "-45% 0px -50% 0px", threshold: 0 }
+  );
+  sections.forEach((section) => observer.observe(section));
+}
+
 // ---- Hero network/particle background ----
 function initHeroParticles() {
   const canvas = document.getElementById("hero-canvas");
@@ -228,6 +309,7 @@ async function loadProfile() {
   setText("about-location", data.location, "—");
   setText("about-experience", data.years_experience, "—");
   setText("about-location-hero", data.location, "—");
+  setText("contact-location", data.location, "—");
   if (data.years_experience) setText("stat-years", data.years_experience);
 
   const linkedinNode = document.getElementById("about-linkedin");
@@ -238,6 +320,31 @@ async function loadProfile() {
     const footerLink = document.getElementById("footer-linkedin");
     if (footerLink) footerLink.href = data.linkedin_url;
   }
+  const contactLinkedinNode = document.getElementById("contact-linkedin");
+  if (contactLinkedinNode && data.linkedin_url) {
+    contactLinkedinNode.replaceChildren(
+      el("a", { href: data.linkedin_url, target: "_blank", rel: "noopener noreferrer" }, ["View profile"])
+    );
+  }
+
+  renderCompetencyChips();
+}
+
+// ---- About: competency chip list (static keyword list from verified CV/portfolio content) ----
+function renderCompetencyChips() {
+  const container = document.getElementById("about-competencies");
+  if (!container) return;
+
+  const competencies = [
+    "QHSE Management Systems", "Occupational Health & Safety", "Environmental Management",
+    "Risk Assessment", "Hazard Identification", "Incident Prevention", "Incident Investigation",
+    "Safety Inspections", "Site Audits", "Compliance Monitoring", "Contractor Safety",
+    "Emergency Preparedness", "Permit-to-Work Systems", "Toolbox Talks", "Safety Training",
+    "Leadership Engagement", "KPI Monitoring", "Continuous Improvement",
+  ];
+
+  const chips = competencies.map((c) => el("li", null, [c]));
+  container.replaceChildren(...chips);
 }
 
 // ---- Skills, grouped by category ----
@@ -269,10 +376,12 @@ async function loadSkills() {
   container.replaceChildren(...cards);
 }
 
-// ---- Certification detail modal ----
-function initCertModal() {
-  const backdrop = document.getElementById("cert-modal");
-  const closeBtn = document.getElementById("cert-modal-close");
+// ---- Generic detail modal (used by certifications and projects) ----
+function initDetailModal(ids) {
+  const backdrop = document.getElementById(ids.backdrop);
+  const closeBtn = document.getElementById(ids.close);
+  const titleNode = document.getElementById(ids.title);
+  const bodyNode = document.getElementById(ids.body);
   if (!backdrop || !closeBtn) return null;
 
   let lastFocused = null;
@@ -281,22 +390,10 @@ function initCertModal() {
     backdrop.hidden = true;
     if (lastFocused) lastFocused.focus();
   }
-  function open(cert) {
+  function open(title, rows) {
     lastFocused = document.activeElement;
-    document.getElementById("cert-modal-title").textContent = cert.name;
-    const body = document.getElementById("cert-modal-body");
-    const rows = [];
-    if (cert.issuer) rows.push(el("p", null, [el("strong", null, ["Issuer: "]), cert.issuer]));
-    if (cert.issue_date) rows.push(el("p", null, [el("strong", null, ["Date: "]), cert.issue_date]));
-    if (cert.credential_no) rows.push(el("p", null, [el("strong", null, ["Credential No.: "]), cert.credential_no]));
-    if (cert.framework) rows.push(el("p", null, [el("strong", null, ["Framework: "]), cert.framework]));
-    if (cert.verify_url) {
-      rows.push(el("p", null, [
-        el("strong", null, ["Verify: "]),
-        el("a", { href: cert.verify_url, target: "_blank", rel: "noopener noreferrer" }, [cert.verify_url]),
-      ]));
-    }
-    body.replaceChildren(...rows);
+    titleNode.textContent = title;
+    bodyNode.replaceChildren(...rows);
     backdrop.hidden = false;
     closeBtn.focus();
   }
@@ -310,12 +407,39 @@ function initCertModal() {
   return { open, close };
 }
 
+function certModalRows(cert) {
+  const rows = [];
+  if (cert.issuer) rows.push(el("p", null, [el("strong", null, ["Issuer: "]), cert.issuer]));
+  if (cert.issue_date) rows.push(el("p", null, [el("strong", null, ["Date: "]), cert.issue_date]));
+  if (cert.credential_no) rows.push(el("p", null, [el("strong", null, ["Credential No.: "]), cert.credential_no]));
+  if (cert.category) rows.push(el("p", null, [el("strong", null, ["Category: "]), cert.category]));
+  if (cert.framework) rows.push(el("p", null, [el("strong", null, ["Framework: "]), cert.framework]));
+  if (cert.verify_url) {
+    rows.push(el("p", null, [
+      el("strong", null, ["Verify: "]),
+      el("a", { href: cert.verify_url, target: "_blank", rel: "noopener noreferrer" }, [cert.verify_url]),
+    ]));
+  }
+  if (!rows.length) rows.push(el("p", null, ["Full certificate details coming soon."]));
+  return rows;
+}
+
+function projectModalRows(project) {
+  const rows = [];
+  if (project.client_industry) rows.push(el("p", null, [el("strong", null, ["Client / Sector: "]), project.client_industry]));
+  if (project.role) rows.push(el("p", null, [el("strong", null, ["Role: "]), project.role]));
+  if (project.tools) rows.push(el("p", null, [el("strong", null, ["Scope / Tools: "]), project.tools]));
+  if (project.results) rows.push(el("p", null, [el("strong", null, ["Key Responsibilities / Result: "]), project.results]));
+  if (!rows.length) rows.push(el("p", null, ["Full project details coming soon."]));
+  return rows;
+}
+
 // ---- Certifications ----
 async function loadCertifications(certModal) {
   const container = document.getElementById("certifications-list");
   const { data, error } = await supabaseClient
     .from("certifications")
-    .select("name, issuer, issue_date, credential_no, verify_url, framework, sort_order")
+    .select("name, issuer, issue_date, credential_no, verify_url, framework, category, sort_order")
     .order("sort_order", { ascending: true });
 
   if (error || !data || data.length === 0) {
@@ -335,17 +459,20 @@ async function loadCertifications(certModal) {
       el("div", { class: "card-meta" }, metaChildren),
     ]);
 
+    if (cert.category) {
+      li.appendChild(el("div", { class: "card-framework" }, [cert.category]));
+    }
     if (cert.framework) {
       li.appendChild(el("div", { class: "card-framework" }, [cert.framework]));
     }
     li.appendChild(el("div", { class: "card-expand-hint" }, ["View details →"]));
 
     if (certModal) {
-      li.addEventListener("click", () => certModal.open(cert));
+      li.addEventListener("click", () => certModal.open(cert.name, certModalRows(cert)));
       li.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          certModal.open(cert);
+          certModal.open(cert.name, certModalRows(cert));
         }
       });
     }
@@ -387,20 +514,64 @@ async function loadEducation() {
   }
 
   const items = data.map((row) =>
-    el("li", null, [
-      el("div", { class: "card-title" }, [row.qualification]),
-      el("div", { class: "card-meta" }, [[row.school, row.year].filter(Boolean).join(" — ")]),
+    el("li", { class: "timeline-item" }, [
+      el("span", { class: "timeline-node", "aria-hidden": "true" }),
+      el("div", { class: "timeline-card glass" }, [
+        el("div", { class: "timeline-role" }, [row.qualification]),
+        row.school ? el("div", { class: "timeline-meta" }, [row.school]) : null,
+        row.year ? el("div", { class: "timeline-period" }, [String(row.year)]) : null,
+      ]),
     ])
   );
   container.replaceChildren(...items);
 }
 
+// ---- Professional Experience timeline ----
+async function loadExperience() {
+  const container = document.getElementById("experience-list");
+  if (!container) return;
+  const { data, error } = await supabaseClient
+    .from("experience")
+    .select("role, company, location, period, description, sort_order")
+    .order("sort_order", { ascending: true });
+
+  if (error || !data || data.length === 0) {
+    showEmptyState(container, "Experience coming soon.");
+    return;
+  }
+
+  const items = data.map((row) => {
+    const titleText = row.role || row.company;
+    const metaParts = [];
+    if (row.role) metaParts.push(row.company);
+    if (row.location) metaParts.push(row.location);
+
+    const cardChildren = [
+      el("div", { class: "timeline-role" }, [titleText]),
+    ];
+    if (metaParts.length) cardChildren.push(el("div", { class: "timeline-meta" }, [metaParts.join(" — ")]));
+    if (row.period) cardChildren.push(el("div", { class: "timeline-period" }, [row.period]));
+    if (row.description) {
+      const bullets = row.description.split("|").map((s) => s.trim()).filter(Boolean);
+      if (bullets.length) {
+        cardChildren.push(el("ul", { class: "timeline-desc" }, bullets.map((b) => el("li", null, [b]))));
+      }
+    }
+
+    return el("li", { class: "timeline-item" }, [
+      el("span", { class: "timeline-node", "aria-hidden": "true" }),
+      el("div", { class: "timeline-card glass" }, cardChildren),
+    ]);
+  });
+  container.replaceChildren(...items);
+}
+
 // ---- Client Projects ----
-async function loadProjects() {
+async function loadProjects(projectModal) {
   const container = document.getElementById("projects-grid");
   const { data, error } = await supabaseClient
     .from("projects")
-    .select("name, client_industry, role, tools, results, sort_order")
+    .select("name, client_industry, role, tools, results, industry_badge, sort_order")
     .order("sort_order", { ascending: true });
 
   if (error || !data || data.length === 0) {
@@ -411,15 +582,47 @@ async function loadProjects() {
   setText("stat-projects", String(data.length));
 
   const cards = data.map((project) => {
-    const card = el("div", { class: "project-card" }, [
-      el("h3", null, [project.name]),
-      el("div", { class: "card-meta" }, [project.client_industry || ""]),
-    ]);
+    const card = el("div", { class: "project-card" }, []);
+    if (project.industry_badge) {
+      card.appendChild(el("div", { class: "badge-row" }, [el("span", { class: "badge" }, [project.industry_badge])]));
+    }
+    card.appendChild(el("h3", null, [project.name]));
+    card.appendChild(el("div", { class: "card-meta" }, [project.client_industry || ""]));
     if (project.role) card.appendChild(el("p", null, [el("span", { class: "project-label" }, ["Role: "]), project.role]));
     if (project.tools) card.appendChild(el("p", null, [el("span", { class: "project-label" }, ["Tools: "]), project.tools]));
     if (project.results) card.appendChild(el("p", null, [el("span", { class: "project-label" }, ["Result: "]), project.results]));
+
+    if (projectModal) {
+      const detailBtn = el("button", { type: "button", class: "btn btn-tertiary" }, ["View Details →"]);
+      detailBtn.addEventListener("click", () => projectModal.open(project.name, projectModalRows(project)));
+      card.appendChild(detailBtn);
+    }
     return card;
   });
+  container.replaceChildren(...cards);
+}
+
+// ---- QHSE Focus Areas (static, qualitative — no fabricated numbers) ----
+function renderFocusAreas() {
+  const container = document.getElementById("focus-grid");
+  if (!container) return;
+
+  const areas = [
+    { icon: "🛡️", title: "Risk Management", desc: "Proactive hazard identification and risk assessment embedded across every phase of site operations." },
+    { icon: "👷", title: "Safety Leadership", desc: "Building a visible, engaged safety culture through leadership presence, coaching, and accountability." },
+    { icon: "📋", title: "Compliance", desc: "Aligning site practices with ISO 45001, ISO 9001, ISO 14001, and applicable regulatory requirements." },
+    { icon: "🚧", title: "Incident Prevention", desc: "Investigation, root cause analysis, and corrective action follow-through to prevent recurrence." },
+    { icon: "🎓", title: "Workforce Training", desc: "Inductions, toolbox talks, and instructor-led training that build competent, safety-aware teams." },
+    { icon: "🌱", title: "Environmental Protection", desc: "Environmental management practices that reduce impact across EPC, Oil & Gas, and construction sites." },
+  ];
+
+  const cards = areas.map((a) =>
+    el("div", { class: "focus-card glass reveal" }, [
+      el("span", { class: "focus-icon", "aria-hidden": "true" }, [a.icon]),
+      el("div", { class: "focus-title" }, [a.title]),
+      el("div", { class: "focus-desc" }, [a.desc]),
+    ])
+  );
   container.replaceChildren(...cards);
 }
 
@@ -450,8 +653,8 @@ function initAccessForm() {
     const company = (formData.get("company") || "").toString().trim();
     const message = (formData.get("message") || "").toString().trim();
 
-    if (!name || !email) {
-      status.textContent = "Please fill in your name and work email.";
+    if (!name || !email || !company) {
+      status.textContent = "Please fill in your name, work email, and company.";
       status.className = "form-status error";
       return;
     }
@@ -486,12 +689,29 @@ document.getElementById("footer-year").textContent = new Date().getFullYear();
 initThemeToggle();
 initMobileNav();
 initHeroParticles();
+initTypingEffect();
+initScrollSpy();
 initAccessForm();
-const certModal = initCertModal();
+
+const certModal = initDetailModal({
+  backdrop: "cert-modal",
+  close: "cert-modal-close",
+  title: "cert-modal-title",
+  body: "cert-modal-body",
+});
+const projectModal = initDetailModal({
+  backdrop: "project-modal",
+  close: "project-modal-close",
+  title: "project-modal-title",
+  body: "project-modal-body",
+});
+
 loadProfile();
 loadSkills();
 loadCertifications(certModal);
 loadApprovals();
 loadEducation();
-loadProjects();
+loadExperience();
+loadProjects(projectModal);
+renderFocusAreas();
 initRevealAnimations();
