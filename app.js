@@ -99,7 +99,7 @@ async function loadCertifications() {
   const container = document.getElementById("certifications-list");
   const { data, error } = await supabaseClient
     .from("certifications")
-    .select("name, issuer, issue_date, credential_no, verify_url, sort_order")
+    .select("name, issuer, issue_date, credential_no, verify_url, framework, sort_order")
     .order("sort_order", { ascending: true });
 
   if (error || !data || data.length === 0) {
@@ -121,6 +121,9 @@ async function loadCertifications() {
       const meta = li.querySelector(".card-meta");
       meta.appendChild(document.createTextNode(" · "));
       meta.appendChild(el("a", { href: cert.verify_url, target: "_blank", rel: "noopener noreferrer" }, ["Verify"]));
+    }
+    if (cert.framework) {
+      li.appendChild(el("div", { class: "card-framework" }, [cert.framework]));
     }
     return li;
   });
