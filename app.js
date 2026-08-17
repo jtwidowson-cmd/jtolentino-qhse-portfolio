@@ -188,33 +188,58 @@ function initScrollSpy() {
   sections.forEach((section) => observer.observe(section));
 }
 
-// ---- Full-page ambient background animation ----
-// A lightweight, low-opacity backdrop suggesting connected systems, risk
-// monitoring, and engineering process control: a drifting blueprint grid,
-// diagonal industrial panels, hexagonal motifs, a connected node network,
-// small drifting particles, and occasional brighter "pulse" nodes.
+// ---- Interactive particle network background ----
+// A full-page, low-opacity canvas of glowing nodes connected by thin lines,
+// drifting slowly on their own and gently reacting to the cursor (desktop
+// only — touch devices keep the ambient drift but never receive cursor
+// interaction). Runs behind all page content; the canvas itself is
+// pointer-events:none so nothing on the site becomes unclickable.
 function initBackgroundAnimation() {
   const canvas = document.getElementById("bg-canvas");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   const prefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const isTouchDevice =
+    (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) || "ontouchstart" in window;
 
   let width = 0, height = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
   let nodes = [];
-  let dust = [];
-  let hexagons = [];
-  let panels = [];
   let rafId = null;
-  let t = 0;
+  let glowIntensity = 0; // eased 0..1, drives the cursor glow fade in/out
 
-  function counts() {
-    if (width < 560) return { nodes: 16, dust: 12, hex: 3 };
-    if (width < 1000) return { nodes: 28, dust: 20, hex: 5 };
-    return { nodes: 42, dust: 30, hex: 7 };
+  const mouse = { x: -9999, y: -9999, active: false, lastMoveAt: 0 };
+  const glow = { x: -9999, y: -9999 };
+
+  const REPEL_RADIUS = 140; // px — moderate interaction radius (100-180 range)
+  const ATTRACT_RADIUS = 220; // px — larger, much weaker pull ring beyond repulsion
+
+  function particleCount() {
+    if (width < 560) return 22; // mobile: 15-30
+    if (width < 1000) return 48; // tablet: 35-60
+    return 80; // desktop: 60-100
+  }
+
+  function connectDistance() {
+    if (width < 560) return 100;
+    if (width < 1000) return 130;
+    return 150;
   }
 
   function isDark() {
     return document.documentElement.getAttribute("data-theme") !== "light";
+  }
+
+  // Electric blue / cyan majority, subtle violet accent — no rainbow colors.
+  function pickColor(dark) {
+    const roll = Math.random();
+    if (dark) {
+      if (roll < 0.55) return "110,180,255"; // electric blue
+      if (roll < 0.85) return "80,220,225"; // cyan
+      return "175,135,255"; // subtle violet accent
+    }
+    if (roll < 0.55) return "60,110,220";
+    if (roll < 0.85) return "20,150,165";
+    return "130,90,210";
   }
 
   function resize() {
@@ -229,164 +254,145 @@ function initBackgroundAnimation() {
   }
 
   function seed() {
-    const c = counts();
-    nodes = Array.from({ length: c.nodes }, () => ({
+    const dark = isDark();
+    const count = particleCount();
+    nodes = Array.from({ length: count }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
       vx: (Math.random() - 0.5) * 0.16,
       vy: (Math.random() - 0.5) * 0.16,
-      pulse: 0,
+      r: Math.random() < 0.12 ? 2.2 + Math.random() * 0.8 : 1 + Math.random() * 1.2,
+      colorRgb: pickColor(dark),
+      boost: 0,
     }));
-    dust = Array.from({ length: c.dust }, () => ({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      vx: (Math.random() - 0.5) * 0.1,
-      vy: (Math.random() - 0.5) * 0.1,
-      r: 0.6 + Math.random() * 1.1,
-    }));
-    hexagons = Array.from({ length: c.hex }, () => ({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      size: 26 + Math.random() * 42,
-      rotation: Math.random() * Math.PI,
-      spin: (Math.random() - 0.5) * 0.0004,
-    }));
-    panels = [
-      { x: width * 0.06, y: height * 0.1, w: width * 0.46, h: height * 0.5, angle: -0.12, phase: 0 },
-      { x: width * 0.56, y: height * 0.42, w: width * 0.42, h: height * 0.56, angle: 0.1, phase: 2.1 },
-      { x: width * 0.16, y: height * 0.6, w: width * 0.32, h: height * 0.36, angle: -0.07, phase: 4.2 },
-    ];
   }
 
-  function drawGrid(rgb) {
-    const cell = 64;
-    const offset = (t * 0.06) % cell; // very slow drift
-    ctx.strokeStyle = `rgba(${rgb}, 0.05)`;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let x = -offset; x < width + cell; x += cell) {
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, height);
-    }
-    for (let y = -offset; y < height + cell; y += cell) {
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-    }
-    ctx.stroke();
+  function onMouseMove(event) {
+    mouse.x = event.clientX;
+    mouse.y = event.clientY;
+    mouse.active = true;
+    mouse.lastMoveAt = Date.now();
+  }
+  function onMouseLeave() {
+    mouse.active = false;
   }
 
-  function drawPanels(rgb) {
-    panels.forEach((p) => {
-      const breathe = 0.025 + 0.015 * Math.sin(t * 0.006 + p.phase);
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.angle);
-      ctx.fillStyle = `rgba(${rgb}, ${breathe})`;
-      ctx.strokeStyle = `rgba(${rgb}, 0.08)`;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.rect(0, 0, p.w, p.h);
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
-    });
+  if (!isTouchDevice) {
+    // Coordinates are captured globally; the canvas itself never receives
+    // pointer events (pointer-events: none), so page content stays clickable.
+    window.addEventListener("mousemove", onMouseMove, { passive: true });
+    document.addEventListener("mouseleave", onMouseLeave);
   }
 
-  function drawHexagons(rgb) {
-    hexagons.forEach((h) => {
-      h.rotation += h.spin;
-      ctx.save();
-      ctx.translate(h.x, h.y);
-      ctx.rotate(h.rotation);
-      ctx.strokeStyle = `rgba(${rgb}, 0.09)`;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) {
-        const angle = (Math.PI / 3) * i;
-        const px = Math.cos(angle) * h.size;
-        const py = Math.sin(angle) * h.size;
-        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      ctx.stroke();
-      ctx.restore();
-    });
-  }
-
-  function drawDust(rgb) {
-    dust.forEach((d) => {
-      d.x += d.vx;
-      d.y += d.vy;
-      if (d.x < 0) d.x = width; else if (d.x > width) d.x = 0;
-      if (d.y < 0) d.y = height; else if (d.y > height) d.y = 0;
-      ctx.fillStyle = `rgba(${rgb}, 0.35)`;
-      ctx.beginPath();
-      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
-      ctx.fill();
-    });
-  }
-
-  function drawNetwork(lineRgb, dotRgb, glowRgb) {
-    const maxDist = Math.min(160, width / 6);
-
+  function updateNodes(interactive) {
     nodes.forEach((n) => {
       n.x += n.vx;
       n.y += n.vy;
-      if (n.x < 0 || n.x > width) n.vx *= -1;
-      if (n.y < 0 || n.y > height) n.vy *= -1;
-      if (n.pulse <= 0 && Math.random() < 0.0009) n.pulse = 1; // occasional brighter node
-      if (n.pulse > 0) n.pulse *= 0.985;
-    });
 
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        const dx = nodes[i].x - nodes[j].x;
-        const dy = nodes[i].y - nodes[j].y;
-        const dist = Math.hypot(dx, dy);
-        if (dist < maxDist) {
-          ctx.strokeStyle = `rgba(${lineRgb}, ${0.14 * (1 - dist / maxDist)})`;
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(nodes[i].x, nodes[i].y);
-          ctx.lineTo(nodes[j].x, nodes[j].y);
-          ctx.stroke();
+      // wrap naturally at the edges
+      if (n.x < -10) n.x = width + 10;
+      else if (n.x > width + 10) n.x = -10;
+      if (n.y < -10) n.y = height + 10;
+      else if (n.y > height + 10) n.y = -10;
+
+      n.boost = 0;
+
+      if (interactive) {
+        const dx = n.x - mouse.x;
+        const dy = n.y - mouse.y;
+        const dist = Math.max(Math.hypot(dx, dy), 0.001);
+
+        if (dist < REPEL_RADIUS) {
+          // closer particles get pushed harder; smooth (squared) falloff avoids sudden jumps
+          const strength = Math.pow(1 - dist / REPEL_RADIUS, 2) * 0.6;
+          n.x += (dx / dist) * strength;
+          n.y += (dy / dist) * strength;
+          n.boost = 1 - dist / REPEL_RADIUS;
+        } else if (dist < ATTRACT_RADIUS) {
+          // very subtle inward pull at the larger ring — barely noticeable
+          const strength = (1 - (dist - REPEL_RADIUS) / (ATTRACT_RADIUS - REPEL_RADIUS)) * 0.05;
+          n.x -= (dx / dist) * strength;
+          n.y -= (dy / dist) * strength;
         }
       }
-    }
+    });
+  }
 
+  function drawConnections(interactive) {
+    const maxDist = connectDistance();
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i], b = nodes[j];
+        const dx = a.x - b.x, dy = a.y - b.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist >= maxDist) continue;
+
+        let alpha = 0.16 * (1 - dist / maxDist);
+        if (interactive) {
+          const midX = (a.x + b.x) / 2, midY = (a.y + b.y) / 2;
+          const mDist = Math.hypot(midX - mouse.x, midY - mouse.y);
+          if (mDist < REPEL_RADIUS) alpha += (1 - mDist / REPEL_RADIUS) * 0.2;
+        }
+        ctx.strokeStyle = `rgba(130,175,255,${Math.min(alpha, 0.5)})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+    }
+  }
+
+  function drawNodes() {
     nodes.forEach((n) => {
-      if (n.pulse > 0.02) {
-        const glowR = 11 * n.pulse;
-        const gradient = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, glowR);
-        gradient.addColorStop(0, `rgba(${glowRgb}, ${0.5 * n.pulse})`);
-        gradient.addColorStop(1, `rgba(${glowRgb}, 0)`);
-        ctx.fillStyle = gradient;
+      const boosted = n.boost;
+      const radius = n.r + boosted * 1.2;
+
+      if (n.r > 1.8 || boosted > 0.4) {
+        // soft glow — cheap radial gradient rather than a canvas blur filter
+        const glowR = radius * 4;
+        const grad = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, glowR);
+        grad.addColorStop(0, `rgba(${n.colorRgb}, ${0.22 + boosted * 0.25})`);
+        grad.addColorStop(1, `rgba(${n.colorRgb}, 0)`);
+        ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.arc(n.x, n.y, glowR, 0, Math.PI * 2);
         ctx.fill();
       }
-      ctx.fillStyle = `rgba(${dotRgb}, ${0.5 + 0.4 * n.pulse})`;
+
+      ctx.fillStyle = `rgba(${n.colorRgb}, ${0.55 + boosted * 0.4})`;
       ctx.beginPath();
-      ctx.arc(n.x, n.y, 1.5 + n.pulse * 1.8, 0, Math.PI * 2);
+      ctx.arc(n.x, n.y, radius, 0, Math.PI * 2);
       ctx.fill();
     });
   }
 
+  function drawCursorGlow() {
+    if (isTouchDevice || glowIntensity < 0.01) return;
+    glow.x += (mouse.x - glow.x) * 0.08;
+    glow.y += (mouse.y - glow.y) * 0.08;
+
+    const r = 320;
+    const grad = ctx.createRadialGradient(glow.x, glow.y, 0, glow.x, glow.y, r);
+    grad.addColorStop(0, `rgba(90,190,255,${0.05 * glowIntensity})`);
+    grad.addColorStop(0.5, `rgba(90,160,255,${0.025 * glowIntensity})`);
+    grad.addColorStop(1, "rgba(90,160,255,0)");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(glow.x, glow.y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   function draw() {
     ctx.clearRect(0, 0, width, height);
-    t += 1;
 
-    const dark = isDark();
-    const structureRgb = dark ? "109,117,246" : "71,80,214";
-    const lineRgb = dark ? "109,117,246" : "71,80,214";
-    const dotRgb = dark ? "144,152,255" : "71,80,214";
-    const glowRgb = dark ? "160,220,255" : "90,150,220";
+    const interactive = !isTouchDevice && mouse.active && Date.now() - mouse.lastMoveAt < 2000;
+    glowIntensity += ((interactive ? 1 : 0) - glowIntensity) * 0.06;
 
-    drawGrid(structureRgb);
-    drawPanels(structureRgb);
-    drawHexagons(structureRgb);
-    drawDust(dotRgb);
-    drawNetwork(lineRgb, dotRgb, glowRgb);
+    updateNodes(interactive);
+    drawCursorGlow();
+    drawConnections(interactive);
+    drawNodes();
 
     if (!prefersReduced) rafId = requestAnimationFrame(draw);
   }
