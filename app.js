@@ -229,17 +229,13 @@ function initBackgroundAnimation() {
     return document.documentElement.getAttribute("data-theme") !== "light";
   }
 
-  // Electric blue / cyan majority, subtle violet accent — no rainbow colors.
+  // Electric blue / cyan only — no rainbow colors, no other accents.
   function pickColor(dark) {
     const roll = Math.random();
     if (dark) {
-      if (roll < 0.55) return "110,180,255"; // electric blue
-      if (roll < 0.85) return "80,220,225"; // cyan
-      return "175,135,255"; // subtle violet accent
+      return roll < 0.6 ? "110,180,255" /* electric blue */ : "80,220,225" /* cyan */;
     }
-    if (roll < 0.55) return "60,110,220";
-    if (roll < 0.85) return "20,150,165";
-    return "130,90,210";
+    return roll < 0.6 ? "60,110,220" : "20,150,165";
   }
 
   function resize() {
@@ -259,8 +255,8 @@ function initBackgroundAnimation() {
     nodes = Array.from({ length: count }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      vx: (Math.random() - 0.5) * 0.16,
-      vy: (Math.random() - 0.5) * 0.16,
+      vx: (Math.random() - 0.5) * 0.1,
+      vy: (Math.random() - 0.5) * 0.1,
       r: Math.random() < 0.12 ? 2.2 + Math.random() * 0.8 : 1 + Math.random() * 1.2,
       colorRgb: pickColor(dark),
       boost: 0,
