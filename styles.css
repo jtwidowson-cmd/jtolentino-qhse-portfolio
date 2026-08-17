@@ -181,6 +181,16 @@ a { color: var(--steel); }
 .card-title { font-weight: 700; color: var(--navy); margin-bottom: 2px; }
 .card-meta { color: var(--muted); font-size: 0.9rem; }
 .card-meta a { word-break: break-word; }
+.card-framework {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--navy);
+  background: var(--steel-light);
+  border-radius: 999px;
+  padding: 4px 12px;
+}
 
 /* Approvals chips */
 .chip-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px; }
