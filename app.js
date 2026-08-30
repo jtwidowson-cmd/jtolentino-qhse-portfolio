@@ -21,6 +21,7 @@ function el(tag, props, children) {
     if (child == null) return;
     node.appendChild(typeof child === "string" ? document.createTextNode(child) : child);
   });
+  if (node.classList && node.classList.contains("tilt")) attachTilt(node);
   return node;
 }
 
@@ -188,6 +189,45 @@ function initScrollSpy() {
   sections.forEach((section) => observer.observe(section));
 }
 
+// ---- 3D tilt interaction (skill/credential/project/timeline cards, hero photo) ----
+// Any element with a "tilt" class gets a subtle pointer-tracked perspective
+// tilt plus a soft light sheen — the existing look and layout are untouched,
+// this only adds a reactive depth effect on top of it. Skipped entirely for
+// touch devices (no hover) and when the visitor prefers reduced motion.
+const TILT_MAX_DEG = 8;
+const tiltPrefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const tiltIsTouchDevice =
+  (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) || "ontouchstart" in window;
+
+function attachTilt(node) {
+  if (!node || node.dataset.tiltReady || tiltPrefersReduced || tiltIsTouchDevice) return;
+  node.dataset.tiltReady = "1";
+
+  function onMove(event) {
+    const rect = node.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const px = (event.clientX - rect.left) / rect.width;
+    const py = (event.clientY - rect.top) / rect.height;
+    const rx = (0.5 - py) * TILT_MAX_DEG * 2;
+    const ry = (px - 0.5) * TILT_MAX_DEG * 2;
+    node.style.setProperty("--tilt-rx", `${rx.toFixed(2)}deg`);
+    node.style.setProperty("--tilt-ry", `${ry.toFixed(2)}deg`);
+    node.style.setProperty("--tilt-gx", `${(px * 100).toFixed(1)}%`);
+    node.style.setProperty("--tilt-gy", `${(py * 100).toFixed(1)}%`);
+  }
+  function onLeave() {
+    node.style.setProperty("--tilt-rx", "0deg");
+    node.style.setProperty("--tilt-ry", "0deg");
+  }
+
+  node.addEventListener("mousemove", onMove);
+  node.addEventListener("mouseleave", onLeave);
+}
+
+function initTiltEffect() {
+  document.querySelectorAll(".tilt").forEach(attachTilt);
+}
+
 // ---- Interactive particle network background ----
 // A full-page, low-opacity canvas of glowing nodes connected by thin lines,
 // drifting slowly on their own and gently reacting to the cursor (desktop
@@ -212,6 +252,7 @@ function initBackgroundAnimation() {
 
   const REPEL_RADIUS = 140; // px — moderate interaction radius (100-180 range)
   const ATTRACT_RADIUS = 220; // px — larger, much weaker pull ring beyond repulsion
+  const PARALLAX_STRENGTH = 26; // px — how far the closest (z=1) particles drift with the cursor
 
   function particleCount() {
     if (width < 560) return 22; // mobile: 15-30
@@ -260,6 +301,7 @@ function initBackgroundAnimation() {
       r: Math.random() < 0.12 ? 2.2 + Math.random() * 0.8 : 1 + Math.random() * 1.2,
       colorRgb: pickColor(dark),
       boost: 0,
+      z: 0.35 + Math.random() * 0.65, // depth: 0.35 (far) .. 1 (near) — drives parallax + size
     }));
   }
 
@@ -314,7 +356,7 @@ function initBackgroundAnimation() {
     });
   }
 
-  function drawConnections(interactive) {
+  function drawConnections(interactive, parX, parY) {
     const maxDist = connectDistance();
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
@@ -322,6 +364,9 @@ function initBackgroundAnimation() {
         const dx = a.x - b.x, dy = a.y - b.y;
         const dist = Math.hypot(dx, dy);
         if (dist >= maxDist) continue;
+
+        const ax = a.x + parX * a.z * PARALLAX_STRENGTH, ay = a.y + parY * a.z * PARALLAX_STRENGTH;
+        const bx = b.x + parX * b.z * PARALLAX_STRENGTH, by = b.y + parY * b.z * PARALLAX_STRENGTH;
 
         let alpha = 0.16 * (1 - dist / maxDist);
         if (interactive) {
@@ -332,33 +377,38 @@ function initBackgroundAnimation() {
         ctx.strokeStyle = `rgba(130,175,255,${Math.min(alpha, 0.5)})`;
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(bx, by);
         ctx.stroke();
       }
     }
   }
 
-  function drawNodes() {
+  function drawNodes(parX, parY) {
     nodes.forEach((n) => {
       const boosted = n.boost;
-      const radius = n.r + boosted * 1.2;
+      // depth (z) scales size and glow so nearer particles read as closer —
+      // combined with the parallax offset below this is what gives the
+      // background its 3D feel.
+      const radius = n.r * (0.55 + n.z * 0.75) + boosted * 1.2;
+      const nx = n.x + parX * n.z * PARALLAX_STRENGTH;
+      const ny = n.y + parY * n.z * PARALLAX_STRENGTH;
 
       if (n.r > 1.8 || boosted > 0.4) {
         // soft glow — cheap radial gradient rather than a canvas blur filter
         const glowR = radius * 4;
-        const grad = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, glowR);
-        grad.addColorStop(0, `rgba(${n.colorRgb}, ${0.22 + boosted * 0.25})`);
+        const grad = ctx.createRadialGradient(nx, ny, 0, nx, ny, glowR);
+        grad.addColorStop(0, `rgba(${n.colorRgb}, ${(0.22 + boosted * 0.25) * (0.6 + n.z * 0.4)})`);
         grad.addColorStop(1, `rgba(${n.colorRgb}, 0)`);
         ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.arc(n.x, n.y, glowR, 0, Math.PI * 2);
+        ctx.arc(nx, ny, glowR, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      ctx.fillStyle = `rgba(${n.colorRgb}, ${0.55 + boosted * 0.4})`;
+      ctx.fillStyle = `rgba(${n.colorRgb}, ${(0.55 + boosted * 0.4) * (0.55 + n.z * 0.45)})`;
       ctx.beginPath();
-      ctx.arc(n.x, n.y, radius, 0, Math.PI * 2);
+      ctx.arc(nx, ny, radius, 0, Math.PI * 2);
       ctx.fill();
     });
   }
@@ -385,10 +435,16 @@ function initBackgroundAnimation() {
     const interactive = !isTouchDevice && mouse.active && Date.now() - mouse.lastMoveAt < 2000;
     glowIntensity += ((interactive ? 1 : 0) - glowIntensity) * 0.06;
 
+    // Depth parallax: particles nearer the viewer (higher z) drift further
+    // from center-relative cursor position than distant ones, the same way
+    // layered scenery does — this is what gives the flat canvas a 3D depth.
+    const parX = isTouchDevice ? 0 : ((mouse.x - width / 2) / (width / 2)) * glowIntensity;
+    const parY = isTouchDevice ? 0 : ((mouse.y - height / 2) / (height / 2)) * glowIntensity;
+
     updateNodes(interactive);
     drawCursorGlow();
-    drawConnections(interactive);
-    drawNodes();
+    drawConnections(interactive, parX, parY);
+    drawNodes(parX, parY);
 
     if (!prefersReduced) rafId = requestAnimationFrame(draw);
   }
@@ -488,7 +544,7 @@ async function loadSkills() {
   });
 
   const cards = [...groups.entries()].map(([category, items]) =>
-    el("div", { class: "skill-card" }, [
+    el("div", { class: "skill-card tilt" }, [
       el("h3", null, [category]),
       el("ul", null, items.map((item) => el("li", null, [item]))),
     ])
@@ -574,7 +630,7 @@ async function loadCertifications(certModal) {
     const metaChildren = [metaParts];
     if (cert.credential_no) metaChildren.push(` · Credential No. ${cert.credential_no}`);
 
-    const li = el("li", { class: "credential-card", tabindex: "0", role: "button", "aria-haspopup": "dialog" }, [
+    const li = el("li", { class: "credential-card tilt", tabindex: "0", role: "button", "aria-haspopup": "dialog" }, [
       el("div", { class: "card-title" }, [cert.name]),
       el("div", { class: "card-meta" }, metaChildren),
     ]);
@@ -636,7 +692,7 @@ async function loadEducation() {
   const items = data.map((row) =>
     el("li", { class: "timeline-item" }, [
       el("span", { class: "timeline-node", "aria-hidden": "true" }),
-      el("div", { class: "timeline-card glass" }, [
+      el("div", { class: "timeline-card glass tilt" }, [
         el("div", { class: "timeline-role" }, [row.qualification]),
         row.school ? el("div", { class: "timeline-meta" }, [row.school]) : null,
         row.year ? el("div", { class: "timeline-period" }, [String(row.year)]) : null,
@@ -680,7 +736,7 @@ async function loadExperience() {
 
     return el("li", { class: "timeline-item" }, [
       el("span", { class: "timeline-node", "aria-hidden": "true" }),
-      el("div", { class: "timeline-card glass" }, cardChildren),
+      el("div", { class: "timeline-card glass tilt" }, cardChildren),
     ]);
   });
   container.replaceChildren(...items);
@@ -702,7 +758,7 @@ async function loadProjects(projectModal) {
   setText("stat-projects", String(data.length));
 
   const cards = data.map((project) => {
-    const card = el("div", { class: "project-card" }, []);
+    const card = el("div", { class: "project-card tilt" }, []);
     if (project.industry_badge) {
       card.appendChild(el("div", { class: "badge-row" }, [el("span", { class: "badge" }, [project.industry_badge])]));
     }
@@ -737,7 +793,7 @@ function renderFocusAreas() {
   ];
 
   const cards = areas.map((a) =>
-    el("div", { class: "focus-card glass reveal" }, [
+    el("div", { class: "focus-card glass reveal tilt" }, [
       el("span", { class: "focus-icon", "aria-hidden": "true" }, [a.icon]),
       el("div", { class: "focus-title" }, [a.title]),
       el("div", { class: "focus-desc" }, [a.desc]),
@@ -812,6 +868,7 @@ initBackgroundAnimation();
 initTypingEffect();
 initScrollSpy();
 initAccessForm();
+initTiltEffect();
 
 const certModal = initDetailModal({
   backdrop: "cert-modal",
