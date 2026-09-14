@@ -37,7 +37,11 @@ html[data-theme="light"] {
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+/* Eye-friendly nav: no smooth-scroll roll — we fade + jump instantly via nav-fade.js */
+html { scroll-behavior: auto; }
+main.nav-fade { transition: opacity 0.18s ease; will-change: opacity; }
+main.nav-fade-out { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { main.nav-fade { transition: none; } }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
