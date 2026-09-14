@@ -494,7 +494,7 @@ html[data-theme="light"] .hero-bg {
   box-shadow: var(--glow);
 }
 .card-title { font-weight: 700; color: var(--ink); margin-bottom: 2px; }
-.card-meta { color: var(--muted); font-size: 0.9rem; }
+.card-meta { color: var(--muted); font-size: 0.9rem; white-space: pre-line; }
 .card-meta a { word-break: break-word; }
 .card-framework {
   display: inline-block;
