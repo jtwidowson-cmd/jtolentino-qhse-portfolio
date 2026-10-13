@@ -370,7 +370,7 @@ html[data-theme="light"] .hero-bg {
 .avatar-ring {
   position: relative;
   padding: 6px;
-  border-radius: 26px;
+  border-radius: 50%;
   background: linear-gradient(160deg, var(--accent), var(--accent-2));
   box-shadow: var(--shadow);
   animation: float 5s ease-in-out infinite;
@@ -379,7 +379,7 @@ html[data-theme="light"] .hero-bg {
   content: "";
   position: absolute;
   inset: -10px;
-  border-radius: 32px;
+  border-radius: 50%;
   border: 1px solid var(--accent-2);
   opacity: 0.4;
   animation: pulse-ring 3s ease-in-out infinite;
@@ -393,11 +393,11 @@ html[data-theme="light"] .hero-bg {
   0%, 100% { transform: scale(1); opacity: 0.4; }
   50% { transform: scale(1.06); opacity: 0.15; }
 }
-.avatar-ring-inner { border-radius: 22px; background: var(--bg); }
+.avatar-ring-inner { border-radius: 50%; background: var(--bg); }
 .avatar {
-  width: 268px;
-  height: 335px;
-  border-radius: 20px;
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
   background: radial-gradient(circle at 30% 30%, var(--accent-soft), var(--bg) 70%);
   color: var(--ink);
   display: flex;
@@ -407,7 +407,7 @@ html[data-theme="light"] .hero-bg {
   font-weight: 800;
   overflow: hidden;
 }
-.avatar img { width: 100%; height: 100%; border-radius: 20px; object-fit: cover; display: block; }
+.avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
 
 .stat-row {
   margin-top: 44px;
@@ -717,7 +717,7 @@ html[data-theme="light"] .hero-bg {
   .about-grid { grid-template-columns: 1fr; }
   .contact-grid { grid-template-columns: 1fr; }
   .section { padding: 46px 0; }
-  .avatar { width: 210px; height: 263px; font-size: 2.2rem; }
+  .avatar { width: 210px; height: 210px; font-size: 2.2rem; }
   .btn-ghost.btn-small span, #resume-download { font-size: 0.8rem; }
 }
 
