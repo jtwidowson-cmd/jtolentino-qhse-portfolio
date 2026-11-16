@@ -31,6 +31,66 @@ function setText(id, value, fallback) {
   node.textContent = value && String(value).trim() ? value : (fallback || "");
 }
 
+// ---- Animated number counter (hero stat cards) ----
+const countPrefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+function setCount(node, value) {
+  if (!node) return;
+  const target = parseInt(value, 10);
+  if (node.dataset.value === String(value)) return;
+  node.dataset.value = String(value);
+  if (!Number.isFinite(target) || countPrefersReduced || !node.hasAttribute("data-count")) {
+    node.textContent = String(value);
+    return;
+  }
+  const duration = 1400;
+  const start = performance.now();
+  const runId = (node._countRun = (node._countRun || 0) + 1);
+  function step(now) {
+    if (runId !== node._countRun) return; // a newer value took over
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    node.textContent = String(Math.round(target * eased));
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// ---- Years of experience: counted from the earliest year in the Experience timeline ----
+// Fallback = first role on the CV (ADCOP, 2006); recalculated from Supabase data on load
+// and it rolls over automatically every new year.
+const CAREER_START_FALLBACK = 2006;
+function setCareerYears(startYear) {
+  const years = new Date().getFullYear() - startYear;
+  if (!(years > 0)) return;
+  document.querySelectorAll(".js-years").forEach((node) => setCount(node, years));
+  setText("about-experience", `${years} years`);
+}
+
+function earliestYear(rows) {
+  let min = Infinity;
+  rows.forEach((row) => {
+    (String(row.period || "").match(/\b(19|20)\d{2}\b/g) || []).forEach((y) => {
+      min = Math.min(min, parseInt(y, 10));
+    });
+  });
+  return Number.isFinite(min) ? min : null;
+}
+
+// Hero name: first line up to the middle initial, second line in the accent gradient
+function renderHeroName(fullName) {
+  const node = document.getElementById("hero-name");
+  if (!node || !fullName || !String(fullName).trim()) return;
+  const words = String(fullName).trim().split(/\s+/);
+  let cut = words.findIndex((w, i) => i > 0 && w.endsWith("."));
+  cut = cut === -1 ? Math.ceil(words.length / 2) : cut + 1;
+  if (cut >= words.length) cut = Math.max(1, words.length - 1);
+  node.replaceChildren(
+    el("span", { class: "name-line" }, [words.slice(0, cut).join(" ")]),
+    " ",
+    el("span", { class: "name-line name-accent" }, [words.slice(cut).join(" ")])
+  );
+}
+
 function showEmptyState(container, message) {
   container.replaceChildren(el("p", { class: "empty-state" }, [message]));
 }
@@ -478,15 +538,12 @@ async function loadProfile() {
   }
 
   document.title = `${data.full_name || "Portfolio"} — ${data.title || "QHSE Practitioner"}`;
-  setText("hero-name", data.full_name);
+  renderHeroName(data.full_name);
   setText("hero-title", data.title);
-  setText("hero-tagline", data.tagline);
   setText("hero-bio", data.bio);
   setText("about-location", data.location, "—");
-  setText("about-experience", data.years_experience, "—");
   setText("about-location-hero", data.location, "—");
   setText("contact-location", data.location, "—");
-  if (data.years_experience) setText("stat-years", data.years_experience);
 
   const linkedinNode = document.getElementById("about-linkedin");
   if (linkedinNode && data.linkedin_url) {
@@ -623,7 +680,7 @@ async function loadCertifications(certModal) {
     return;
   }
 
-  setText("stat-certs", String(data.length));
+  setCount(document.getElementById("stat-certs"), data.length);
 
   const items = data.map((cert) => {
     const metaParts = [cert.issuer, cert.issue_date].filter(Boolean).join(" — ");
@@ -716,6 +773,9 @@ async function loadExperience() {
     return;
   }
 
+  const startYear = earliestYear(data);
+  if (startYear) setCareerYears(startYear);
+
   const items = data.map((row) => {
     const titleText = row.role || row.company;
     const metaParts = [];
@@ -755,7 +815,7 @@ async function loadProjects(projectModal) {
     return;
   }
 
-  setText("stat-projects", String(data.length));
+  setCount(document.getElementById("stat-projects"), data.length);
 
   const cards = data.map((project) => {
     const card = el("div", { class: "project-card tilt" }, []);
@@ -883,6 +943,11 @@ const projectModal = initDetailModal({
   body: "project-modal-body",
 });
 
+setCareerYears(CAREER_START_FALLBACK);
+// start the hero counters at 0 so they visibly count up
+document.querySelectorAll(".stat-num [data-count]").forEach((n) => {
+  if (!n.dataset.value && /^\d+$/.test(n.textContent)) setCount(n, n.textContent.trim());
+});
 loadProfile();
 loadSkills();
 loadCertifications(certModal);

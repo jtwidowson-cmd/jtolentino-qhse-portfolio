@@ -16,6 +16,7 @@
 <meta name="twitter:description" content="20+ years of QHSE leadership across Quarrying, EPC, Oil & Gas, and Construction.">
 
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%236d75f6'/%3E%3Ctext x='50' y='68' font-size='55' text-anchor='middle' fill='%23ffffff' font-family='Arial' font-weight='bold'%3EJT%3C/text%3E%3C/svg%3E">
+<link rel="preload" href="fonts/archivo-variable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -76,17 +77,22 @@
         <span>QHSE</span>
         <span>Quality · Health · Safety · Environment</span>
       </figcaption>
+      <div class="hero-badge">
+        <span class="hero-badge-num"><span class="js-years">20</span></span>
+        <span class="hero-badge-text">Years of QHSE<br>Leadership</span>
+      </div>
     </figure>
 
     <div class="container hero-inner">
       <div class="hero-copy reveal">
-        <p class="eyebrow">Hello, I'm</p>
-        <h1 id="hero-name">Josue L.<br>Tolentino Jr.</h1>
-        <p class="hero-title" id="hero-title">QHSE Manager</p>
-        <p class="hero-typing" aria-live="polite">
-          <span id="typing-text"></span><span class="typing-cursor" aria-hidden="true">|</span>
+        <p class="eyebrow"><span class="eyebrow-line" aria-hidden="true"></span>Hello, I'm</p>
+        <h1 id="hero-name"><span class="name-line">Josue L.</span> <span class="name-line name-accent">Tolentino Jr.</span></h1>
+        <p class="hero-role">
+          <span class="hero-title" id="hero-title">QHSE Manager</span>
+          <span class="hero-role-sep" aria-hidden="true"></span>
+          <span class="hero-typing" aria-live="polite"><span id="typing-text"></span><span class="typing-cursor" aria-hidden="true"></span></span>
         </p>
-        <p class="hero-tagline" id="hero-tagline">20+ Years Protecting People and Projects Across Quarrying, EPC, Oil &amp; Gas, and Construction</p>
+        <p class="hero-tagline" id="hero-tagline"><strong><span class="js-years">20</span> Years</strong> of QHSE Leadership Across Oil &amp; Gas, EPC, Quarrying &amp; Construction</p>
         <p class="hero-location">
           <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21Z" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="9.5" r="2.4" stroke="currentColor" stroke-width="1.6"/></svg>
           <span id="about-location-hero">—</span>
@@ -104,39 +110,50 @@
           <a href="#projects" class="btn btn-tertiary">View Projects</a>
         </div>
 
-        <p class="connect-label">Connect:</p>
-        <div class="social-row" aria-label="Social links">
-          <a id="social-linkedin" href="https://www.linkedin.com/in/josue-tolentino-89b00a185/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile" class="social-icon">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.02-3.03-1.85-3.03-1.85 0-2.14 1.45-2.14 2.94v5.66H9.36V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29ZM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12ZM7.12 20.45H3.56V9h3.56v11.45Z"/></svg>
-          </a>
-          <a href="#contact" aria-label="Send a message" class="social-icon">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 6.5h17v11h-17v-11Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 7l8 6 8-6" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
-          </a>
+        <div class="hero-connect">
+          <p class="connect-label">Connect</p>
+          <div class="social-row" aria-label="Social links">
+            <a id="social-linkedin" href="https://www.linkedin.com/in/josue-tolentino-89b00a185/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile" class="social-icon">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.02-3.03-1.85-3.03-1.85 0-2.14 1.45-2.14 2.94v5.66H9.36V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29ZM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12ZM7.12 20.45H3.56V9h3.56v11.45Z"/></svg>
+            </a>
+            <a href="#contact" aria-label="Send a message" class="social-icon">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 6.5h17v11h-17v-11Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 7l8 6 8-6" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+            </a>
+          </div>
         </div>
       </div>
 
       <div class="stat-row">
         <div class="stat-card glass tilt reveal delay-1">
-          <span class="stat-icon" aria-hidden="true">🛡️</span>
-          <span class="stat-value" id="stat-years">20+ Years Experience</span>
+          <span class="stat-num"><span class="js-years" data-count>20</span></span>
+          <span class="stat-value">Years Experience</span>
           <span class="stat-label">HSE / QHSE Leadership</span>
         </div>
         <div class="stat-card glass tilt reveal delay-2">
-          <span class="stat-icon" aria-hidden="true">🏗️</span>
-          <span class="stat-value">EPC • Oil &amp; Gas</span>
-          <span class="stat-label">Construction &amp; Industrial Projects</span>
+          <span class="stat-num"><span data-count>4</span></span>
+          <span class="stat-value">Industry Sectors</span>
+          <span class="stat-label">Oil &amp; Gas · EPC · Quarrying · Construction</span>
         </div>
         <div class="stat-card glass tilt reveal delay-3">
-          <span class="stat-icon" aria-hidden="true">📜</span>
-          <span class="stat-value"><span id="stat-certs">—</span> Professional Credentials</span>
-          <span class="stat-label">Safety • Quality • Compliance</span>
+          <span class="stat-num"><span id="stat-certs" data-count>—</span></span>
+          <span class="stat-value">Professional Credentials</span>
+          <span class="stat-label">Safety · Quality · Compliance</span>
         </div>
         <div class="stat-card glass tilt reveal delay-4">
-          <span class="stat-icon" aria-hidden="true">🌍</span>
-          <span class="stat-value"><span id="stat-projects">—</span> International Projects</span>
+          <span class="stat-num"><span id="stat-projects" data-count>—</span></span>
+          <span class="stat-value">International Projects</span>
           <span class="stat-label">Multicultural Site Experience</span>
         </div>
       </div>
+    </div>
+
+    <div class="hero-marquee" aria-label="Key qualifications">
+      <ul class="marquee-track">
+        <li>ISO 45001</li><li>ISO 9001</li><li>ISO 14001</li><li>NEBOSH</li><li>CQI / IRCA Lead Auditor</li><li>EQF Level 7</li><li>RTITB CT Instructor</li><li>Working at Heights Instructor</li><li>Abrasive Wheels Instructor</li>
+      </ul>
+      <ul class="marquee-track" aria-hidden="true">
+        <li>ISO 45001</li><li>ISO 9001</li><li>ISO 14001</li><li>NEBOSH</li><li>CQI / IRCA Lead Auditor</li><li>EQF Level 7</li><li>RTITB CT Instructor</li><li>Working at Heights Instructor</li><li>Abrasive Wheels Instructor</li>
+      </ul>
     </div>
   </section>
 
