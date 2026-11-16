@@ -31,6 +31,97 @@ function setText(id, value, fallback) {
   node.textContent = value && String(value).trim() ? value : (fallback || "");
 }
 
+// ---- Animated number counter (hero stat cards) ----
+const countPrefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+function setCount(node, value) {
+  if (!node) return;
+  const target = parseInt(value, 10);
+  if (node.dataset.value === String(value)) return;
+  node.dataset.value = String(value);
+  if (!Number.isFinite(target) || countPrefersReduced || !node.hasAttribute("data-count")) {
+    node.textContent = String(value);
+    return;
+  }
+  const duration = 1400;
+  const start = performance.now();
+  const runId = (node._countRun = (node._countRun || 0) + 1);
+  function step(now) {
+    if (runId !== node._countRun) return; // a newer value took over
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    node.textContent = String(Math.round(target * eased));
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// ---- Years of experience: total months actually worked, summed over the Experience timeline ----
+// Periods look like "June 2006 – October 2012" or "October 2024 – Present". Months are counted
+// inclusively (June 2006 – October 2012 = 6 years, 5 months), the same way the CV states them.
+// The fallback matches the CV (17+ years); the figure updates itself from the live data.
+const CAREER_YEARS_FALLBACK = 17;
+const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+
+function parseMonthYear(text) {
+  const t = String(text || "").trim().toLowerCase();
+  if (/present|current|now/.test(t)) {
+    const d = new Date();
+    return d.getFullYear() * 12 + d.getMonth();
+  }
+  const m = t.match(/([a-z]+)\s+(\d{4})/);
+  if (!m) return null;
+  const month = MONTHS.findIndex((name) => name.startsWith(m[1].slice(0, 3)));
+  return month === -1 ? null : parseInt(m[2], 10) * 12 + month;
+}
+
+function periodMonths(period) {
+  const parts = String(period || "").split(/\s*[–-]\s*/);
+  if (parts.length < 2) return 0;
+  const start = parseMonthYear(parts[0]);
+  const end = parseMonthYear(parts[1]);
+  return start != null && end != null && end >= start ? end - start + 1 : 0;
+}
+
+function formatDuration(months) {
+  if (!months) return "";
+  const y = Math.floor(months / 12);
+  const m = months % 12;
+  const out = [];
+  if (y) out.push(`${y} ${y === 1 ? "year" : "years"}`);
+  if (m) out.push(`${m} ${m === 1 ? "month" : "months"}`);
+  return out.join(", ");
+}
+
+function setCareerYears(years) {
+  if (!(years > 0)) return;
+  document.querySelectorAll(".js-years").forEach((node) => setCount(node, years));
+  setText("about-experience", `${years}+ years`);
+}
+
+// Database text can contain long dashes; show them as a middot separator instead.
+function tidy(value) {
+  return value == null ? value : String(value).replace(/\s*\u2014\s*/g, " · ");
+}
+
+// ---- Resume links: download resume.pdf when it is published, otherwise fall back to the request form ----
+async function initResumeLinks() {
+  const links = document.querySelectorAll(".js-resume-link");
+  if (!links.length) return;
+  let available = false;
+  try {
+    const res = await fetch("resume.pdf", { method: "HEAD", cache: "no-store" });
+    available = res.ok && /pdf/i.test(res.headers.get("content-type") || "");
+  } catch (_e) { available = false; }
+  if (available) return;
+  links.forEach((link) => {
+    link.setAttribute("href", "contact.html");
+    link.removeAttribute("download");
+    const label = link.querySelector(".js-resume-label");
+    if (label) label.textContent = label.textContent.replace(/^Download/, "Request");
+    link.setAttribute("title", "Request my resume via the contact form");
+  });
+}
+
 function showEmptyState(container, message) {
   container.replaceChildren(el("p", { class: "empty-state" }, [message]));
 }
@@ -108,85 +199,36 @@ function initRevealAnimations() {
   targets.forEach((t) => observer.observe(t));
 }
 
-// ---- Hero typing effect (cycles through role titles) ----
-function initTypingEffect() {
-  const node = document.getElementById("typing-text");
+// ---- Hero pillars: typed one at a time, terminal style ----
+// The full list stays in the page as screen-reader text; this only animates the visible line.
+function initPillarTyping() {
+  const node = document.getElementById("pillar-text");
   if (!node) return;
+  const pillars = (node.dataset.pillars || "").split("|").map((p) => p.trim()).filter(Boolean);
+  if (pillars.length < 2) return;
+  const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduced) { node.textContent = pillars.join(" · "); return; }
 
-  const roles = [
-    "IRCA Lead Auditor",
-    "RTITB CT Instructor",
-    "Abrasive Wheels Instructor",
-    "Working at Heights Instructor",
-    "EPC & Construction HSE Professional",
-    "Oil & Gas Safety Professional",
-  ];
-
-  const prefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (prefersReduced) {
-    node.textContent = roles[0];
-    return;
-  }
-
-  let roleIndex = 0;
-  let charIndex = 0;
+  let index = 0;
+  let chars = 0;
   let deleting = false;
+  node.textContent = "";
 
   function tick() {
-    const current = roles[roleIndex];
-
+    const word = pillars[index];
     if (!deleting) {
-      charIndex++;
-      node.textContent = current.slice(0, charIndex);
-      if (charIndex === current.length) {
-        deleting = true;
-        setTimeout(tick, 1500);
-        return;
-      }
-      setTimeout(tick, 55);
+      chars += 1;
+      node.textContent = word.slice(0, chars);
+      if (chars === word.length) { deleting = true; setTimeout(tick, 1800); return; }
+      setTimeout(tick, 65 + Math.random() * 45); // slight jitter reads as real typing
     } else {
-      charIndex--;
-      node.textContent = current.slice(0, charIndex);
-      if (charIndex === 0) {
-        deleting = false;
-        roleIndex = (roleIndex + 1) % roles.length;
-        setTimeout(tick, 300);
-        return;
-      }
-      setTimeout(tick, 30);
+      chars -= 1;
+      node.textContent = word.slice(0, chars);
+      if (chars === 0) { deleting = false; index = (index + 1) % pillars.length; setTimeout(tick, 350); return; }
+      setTimeout(tick, 28);
     }
   }
-
-  tick();
-}
-
-// ---- Scroll-spy: highlight the active nav link based on visible section ----
-function initScrollSpy() {
-  const navLinks = document.querySelectorAll('.main-nav a[data-section]');
-  if (!navLinks.length || !("IntersectionObserver" in window)) return;
-
-  const linkMap = new Map();
-  navLinks.forEach((link) => linkMap.set(link.getAttribute("data-section"), link));
-
-  const sections = [...linkMap.keys()]
-    .map((id) => document.getElementById(id))
-    .filter(Boolean);
-  if (!sections.length) return;
-
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        const link = linkMap.get(entry.target.id);
-        if (!link) return;
-        if (entry.isIntersecting) {
-          navLinks.forEach((l) => l.classList.remove("active"));
-          link.classList.add("active");
-        }
-      });
-    },
-    { rootMargin: "-45% 0px -50% 0px", threshold: 0 }
-  );
-  sections.forEach((section) => observer.observe(section));
+  setTimeout(tick, 700);
 }
 
 // ---- 3D tilt interaction (skill/credential/project/timeline cards, hero photo) ----
@@ -270,13 +312,13 @@ function initBackgroundAnimation() {
     return document.documentElement.getAttribute("data-theme") !== "light";
   }
 
-  // Electric blue / cyan only — no rainbow colors, no other accents.
+  // Executive monochrome palette: soft white with a few champagne-gold accents.
   function pickColor(dark) {
     const roll = Math.random();
     if (dark) {
-      return roll < 0.6 ? "110,180,255" /* electric blue */ : "80,220,225" /* cyan */;
+      return roll < 0.75 ? "235,235,235" /* soft white */ : "201,169,110" /* champagne gold */;
     }
-    return roll < 0.6 ? "60,110,220" : "20,150,165";
+    return roll < 0.75 ? "40,40,40" : "154,123,63";
   }
 
   function resize() {
@@ -374,7 +416,7 @@ function initBackgroundAnimation() {
           const mDist = Math.hypot(midX - mouse.x, midY - mouse.y);
           if (mDist < REPEL_RADIUS) alpha += (1 - mDist / REPEL_RADIUS) * 0.2;
         }
-        ctx.strokeStyle = `rgba(130,175,255,${Math.min(alpha, 0.5)})`;
+        ctx.strokeStyle = `rgba(200,200,200,${Math.min(alpha, 0.35)})`;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(ax, ay);
@@ -420,9 +462,9 @@ function initBackgroundAnimation() {
 
     const r = 320;
     const grad = ctx.createRadialGradient(glow.x, glow.y, 0, glow.x, glow.y, r);
-    grad.addColorStop(0, `rgba(90,190,255,${0.05 * glowIntensity})`);
-    grad.addColorStop(0.5, `rgba(90,160,255,${0.025 * glowIntensity})`);
-    grad.addColorStop(1, "rgba(90,160,255,0)");
+    grad.addColorStop(0, `rgba(255,255,255,${0.04 * glowIntensity})`);
+    grad.addColorStop(0.5, `rgba(201,169,110,${0.02 * glowIntensity})`);
+    grad.addColorStop(1, "rgba(201,169,110,0)");
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(glow.x, glow.y, r, 0, Math.PI * 2);
@@ -466,6 +508,7 @@ function initBackgroundAnimation() {
 
 // ---- Load and render profile ----
 async function loadProfile() {
+  if (!document.querySelector("#hero-bio, #about-location, #contact-location, #about-linkedin, #contact-linkedin")) return;
   const { data, error } = await supabaseClient
     .from("profile")
     .select("full_name, title, tagline, bio, location, years_experience, linkedin_url")
@@ -477,16 +520,10 @@ async function loadProfile() {
     return;
   }
 
-  document.title = `${data.full_name || "Portfolio"} — ${data.title || "QHSE Practitioner"}`;
-  setText("hero-name", data.full_name);
-  setText("hero-title", data.title);
-  setText("hero-tagline", data.tagline);
+  // Page title, hero name ("Josue Tolentino") and hero title are set in index.html, not from the database.
   setText("hero-bio", data.bio);
-  setText("about-location", data.location, "—");
-  setText("about-experience", data.years_experience, "—");
-  setText("about-location-hero", data.location, "—");
-  setText("contact-location", data.location, "—");
-  if (data.years_experience) setText("stat-years", data.years_experience);
+  setText("about-location", data.location, "");
+  setText("contact-location", data.location, "");
 
   const linkedinNode = document.getElementById("about-linkedin");
   if (linkedinNode && data.linkedin_url) {
@@ -502,30 +539,12 @@ async function loadProfile() {
       el("a", { href: data.linkedin_url, target: "_blank", rel: "noopener noreferrer" }, ["View profile"])
     );
   }
-
-  renderCompetencyChips();
-}
-
-// ---- About: competency chip list (static keyword list from verified CV/portfolio content) ----
-function renderCompetencyChips() {
-  const container = document.getElementById("about-competencies");
-  if (!container) return;
-
-  const competencies = [
-    "QHSE Management Systems", "Occupational Health & Safety", "Environmental Management",
-    "Risk Assessment", "Hazard Identification", "Incident Prevention", "Incident Investigation",
-    "Safety Inspections", "Site Audits", "Compliance Monitoring", "Contractor Safety",
-    "Emergency Preparedness", "Permit-to-Work Systems", "Toolbox Talks", "Safety Training",
-    "Leadership Engagement", "KPI Monitoring", "Continuous Improvement",
-  ];
-
-  const chips = competencies.map((c) => el("li", null, [c]));
-  container.replaceChildren(...chips);
 }
 
 // ---- Skills, grouped by category ----
 async function loadSkills() {
   const container = document.getElementById("skills-grid");
+  if (!container) return;
   const { data, error } = await supabaseClient
     .from("skills")
     .select("category, item, sort_order")
@@ -585,11 +604,11 @@ function initDetailModal(ids) {
 
 function certModalRows(cert) {
   const rows = [];
-  if (cert.issuer) rows.push(el("p", null, [el("strong", null, ["Issuer: "]), cert.issuer]));
+  if (cert.issuer) rows.push(el("p", { class: "pre-line" }, [el("strong", null, ["Issuer: "]), tidy(cert.issuer)]));
   if (cert.issue_date) rows.push(el("p", null, [el("strong", null, ["Date: "]), cert.issue_date]));
   if (cert.credential_no) rows.push(el("p", null, [el("strong", null, ["Credential No.: "]), cert.credential_no]));
   if (cert.category) rows.push(el("p", null, [el("strong", null, ["Category: "]), cert.category]));
-  if (cert.framework) rows.push(el("p", null, [el("strong", null, ["Framework: "]), cert.framework]));
+  if (cert.framework) rows.push(el("p", null, [el("strong", null, ["Framework: "]), tidy(cert.framework)]));
   if (cert.verify_url) {
     rows.push(el("p", null, [
       el("strong", null, ["Verify: "]),
@@ -613,25 +632,28 @@ function projectModalRows(project) {
 // ---- Certifications ----
 async function loadCertifications(certModal) {
   const container = document.getElementById("certifications-list");
+  const stat = document.getElementById("stat-certs");
+  if (!container && !stat) return;
   const { data, error } = await supabaseClient
     .from("certifications")
     .select("name, issuer, issue_date, credential_no, verify_url, framework, category, sort_order")
     .order("sort_order", { ascending: true });
 
   if (error || !data || data.length === 0) {
-    showEmptyState(container, "Certifications coming soon.");
+    if (container) showEmptyState(container, "Certifications coming soon.");
     return;
   }
 
-  setText("stat-certs", String(data.length));
+  setCount(stat, data.length);
+  if (!container) return;
 
   const items = data.map((cert) => {
-    const metaParts = [cert.issuer, cert.issue_date].filter(Boolean).join(" — ");
+    const metaParts = [tidy(cert.issuer), cert.issue_date].filter(Boolean).join(" · ");
     const metaChildren = [metaParts];
     if (cert.credential_no) metaChildren.push(` · Credential No. ${cert.credential_no}`);
 
     const li = el("li", { class: "credential-card tilt", tabindex: "0", role: "button", "aria-haspopup": "dialog" }, [
-      el("div", { class: "card-title" }, [cert.name]),
+      el("div", { class: "card-title" }, [tidy(cert.name)]),
       el("div", { class: "card-meta" }, metaChildren),
     ]);
 
@@ -639,16 +661,16 @@ async function loadCertifications(certModal) {
       li.appendChild(el("div", { class: "card-framework" }, [cert.category]));
     }
     if (cert.framework) {
-      li.appendChild(el("div", { class: "card-framework" }, [cert.framework]));
+      li.appendChild(el("div", { class: "card-framework" }, [tidy(cert.framework)]));
     }
     li.appendChild(el("div", { class: "card-expand-hint" }, ["View details →"]));
 
     if (certModal) {
-      li.addEventListener("click", () => certModal.open(cert.name, certModalRows(cert)));
+      li.addEventListener("click", () => certModal.open(tidy(cert.name), certModalRows(cert)));
       li.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          certModal.open(cert.name, certModalRows(cert));
+          certModal.open(tidy(cert.name), certModalRows(cert));
         }
       });
     }
@@ -660,6 +682,7 @@ async function loadCertifications(certModal) {
 // ---- Approvals & Accreditations ----
 async function loadApprovals() {
   const container = document.getElementById("approvals-list");
+  if (!container) return;
   const { data, error } = await supabaseClient
     .from("approvals")
     .select("name, issuer, description, sort_order")
@@ -671,7 +694,7 @@ async function loadApprovals() {
   }
 
   const items = data.map((row) =>
-    el("li", null, [el("strong", null, [row.name]), row.issuer ? ` — ${row.issuer}` : ""])
+    el("li", null, [el("strong", null, [tidy(row.name)]), row.issuer ? ` · ${tidy(row.issuer)}` : ""])
   );
   container.replaceChildren(...items);
 }
@@ -679,6 +702,7 @@ async function loadApprovals() {
 // ---- Education ----
 async function loadEducation() {
   const container = document.getElementById("education-list");
+  if (!container) return;
   const { data, error } = await supabaseClient
     .from("education")
     .select("qualification, school, year, sort_order")
@@ -705,16 +729,20 @@ async function loadEducation() {
 // ---- Professional Experience timeline ----
 async function loadExperience() {
   const container = document.getElementById("experience-list");
-  if (!container) return;
+  if (!container && !document.querySelector(".js-years, #about-experience")) return;
   const { data, error } = await supabaseClient
     .from("experience")
     .select("role, company, location, period, description, sort_order")
     .order("sort_order", { ascending: true });
 
   if (error || !data || data.length === 0) {
-    showEmptyState(container, "Experience coming soon.");
+    if (container) showEmptyState(container, "Experience coming soon.");
     return;
   }
+
+  const totalMonths = data.reduce((sum, row) => sum + periodMonths(row.period), 0);
+  if (totalMonths) setCareerYears(Math.floor(totalMonths / 12));
+  if (!container) return;
 
   const items = data.map((row) => {
     const titleText = row.role || row.company;
@@ -725,8 +753,14 @@ async function loadExperience() {
     const cardChildren = [
       el("div", { class: "timeline-role" }, [titleText]),
     ];
-    if (metaParts.length) cardChildren.push(el("div", { class: "timeline-meta" }, [metaParts.join(" — ")]));
-    if (row.period) cardChildren.push(el("div", { class: "timeline-period" }, [row.period]));
+    if (metaParts.length) cardChildren.push(el("div", { class: "timeline-meta" }, [tidy(metaParts.join(" · "))]));
+    if (row.period) {
+      const duration = formatDuration(periodMonths(row.period));
+      cardChildren.push(el("div", { class: "timeline-period" }, [
+        el("span", null, [row.period]),
+        duration ? el("span", { class: "timeline-duration" }, [duration]) : null,
+      ]));
+    }
     if (row.description) {
       const bullets = row.description.split("|").map((s) => s.trim()).filter(Boolean);
       if (bullets.length) {
@@ -745,19 +779,23 @@ async function loadExperience() {
 // ---- Client Projects ----
 async function loadProjects(projectModal) {
   const container = document.getElementById("projects-grid");
+  const stat = document.getElementById("stat-projects");
+  if (!container && !stat) return;
   const { data, error } = await supabaseClient
     .from("projects")
     .select("name, client_industry, role, tools, results, industry_badge, sort_order")
     .order("sort_order", { ascending: true });
 
   if (error || !data || data.length === 0) {
-    showEmptyState(container, "Client projects coming soon.");
+    if (container) showEmptyState(container, "Client projects coming soon.");
     return;
   }
 
-  setText("stat-projects", String(data.length));
+  setCount(stat, data.length);
+  if (!container) return;
 
-  const cards = data.map((project) => {
+  const cards = data.map((raw) => {
+    const project = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, typeof v === "string" ? tidy(v) : v]));
     const card = el("div", { class: "project-card tilt" }, []);
     if (project.industry_badge) {
       card.appendChild(el("div", { class: "badge-row" }, [el("span", { class: "badge" }, [project.industry_badge])]));
@@ -778,30 +816,6 @@ async function loadProjects(projectModal) {
   container.replaceChildren(...cards);
 }
 
-// ---- QHSE Focus Areas (static, qualitative — no fabricated numbers) ----
-function renderFocusAreas() {
-  const container = document.getElementById("focus-grid");
-  if (!container) return;
-
-  const areas = [
-    { icon: "🛡️", title: "Risk Management", desc: "Proactive hazard identification and risk assessment embedded across every phase of site operations." },
-    { icon: "👷", title: "Safety Leadership", desc: "Building a visible, engaged safety culture through leadership presence, coaching, and accountability." },
-    { icon: "📋", title: "Compliance", desc: "Aligning site practices with ISO 45001, ISO 9001, ISO 14001, and applicable regulatory requirements." },
-    { icon: "🚧", title: "Incident Prevention", desc: "Investigation, root cause analysis, and corrective action follow-through to prevent recurrence." },
-    { icon: "🎓", title: "Workforce Training", desc: "Inductions, toolbox talks, and instructor-led training that build competent, safety-aware teams." },
-    { icon: "🌱", title: "Environmental Protection", desc: "Environmental management practices that reduce impact across EPC, Oil & Gas, and construction sites." },
-  ];
-
-  const cards = areas.map((a) =>
-    el("div", { class: "focus-card glass reveal tilt" }, [
-      el("span", { class: "focus-icon", "aria-hidden": "true" }, [a.icon]),
-      el("div", { class: "focus-title" }, [a.title]),
-      el("div", { class: "focus-desc" }, [a.desc]),
-    ])
-  );
-  container.replaceChildren(...cards);
-}
-
 // ---- Access request form ----
 function initAccessForm() {
   const form = document.getElementById("access-form");
@@ -818,7 +832,7 @@ function initAccessForm() {
     const honeypot = (formData.get("website") || "").toString().trim();
     if (honeypot) {
       // Likely a bot. Pretend success, submit nothing.
-      status.textContent = "Thanks — your request has been sent.";
+      status.textContent = "Thanks, your request has been sent.";
       status.className = "form-status success";
       form.reset();
       return;
@@ -854,19 +868,17 @@ function initAccessForm() {
       return;
     }
 
-    status.textContent = "Thanks — your request has been sent. You'll hear back soon.";
+    status.textContent = "Thanks, your request has been sent. You'll hear back soon.";
     status.className = "form-status success";
     form.reset();
   });
 }
 
 // ---- Init ----
-document.getElementById("footer-year").textContent = new Date().getFullYear();
+setText("footer-year", String(new Date().getFullYear()));
 initThemeToggle();
 initMobileNav();
 initBackgroundAnimation();
-initTypingEffect();
-initScrollSpy();
 initAccessForm();
 initTiltEffect();
 
@@ -883,6 +895,13 @@ const projectModal = initDetailModal({
   body: "project-modal-body",
 });
 
+setCareerYears(CAREER_YEARS_FALLBACK);
+initResumeLinks();
+initPillarTyping();
+// start the hero counters at 0 so they visibly count up
+document.querySelectorAll(".stat-num [data-count]").forEach((n) => {
+  if (!n.dataset.value && /^\d+$/.test(n.textContent)) setCount(n, n.textContent.trim());
+});
 loadProfile();
 loadSkills();
 loadCertifications(certModal);
@@ -890,5 +909,4 @@ loadApprovals();
 loadEducation();
 loadExperience();
 loadProjects(projectModal);
-renderFocusAreas();
 initRevealAnimations();
