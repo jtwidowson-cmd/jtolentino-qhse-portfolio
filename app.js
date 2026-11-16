@@ -76,7 +76,7 @@ function earliestYear(rows) {
   return Number.isFinite(min) ? min : null;
 }
 
-// Hero name: first line up to the middle initial, second line in the accent gradient
+// Hero name: first line up to the middle initial, second line the surname
 function renderHeroName(fullName) {
   const node = document.getElementById("hero-name");
   if (!node || !fullName || !String(fullName).trim()) return;
@@ -87,8 +87,27 @@ function renderHeroName(fullName) {
   node.replaceChildren(
     el("span", { class: "name-line" }, [words.slice(0, cut).join(" ")]),
     " ",
-    el("span", { class: "name-line name-accent" }, [words.slice(cut).join(" ")])
+    el("span", { class: "name-line" }, [words.slice(cut).join(" ")])
   );
+}
+
+// ---- Resume links: download resume.pdf when it is published, otherwise fall back to the request form ----
+async function initResumeLinks() {
+  const links = document.querySelectorAll(".js-resume-link");
+  if (!links.length) return;
+  let available = false;
+  try {
+    const res = await fetch("resume.pdf", { method: "HEAD", cache: "no-store" });
+    available = res.ok && /pdf/i.test(res.headers.get("content-type") || "");
+  } catch (_e) { available = false; }
+  if (available) return;
+  links.forEach((link) => {
+    link.setAttribute("href", "#contact");
+    link.removeAttribute("download");
+    const label = link.querySelector(".js-resume-label");
+    if (label) label.textContent = label.textContent.replace(/^Download/, "Request");
+    link.setAttribute("title", "Request my resume via the contact form");
+  });
 }
 
 function showEmptyState(container, message) {
@@ -330,13 +349,13 @@ function initBackgroundAnimation() {
     return document.documentElement.getAttribute("data-theme") !== "light";
   }
 
-  // Electric blue / cyan only — no rainbow colors, no other accents.
+  // Executive monochrome palette: soft white with a few champagne-gold accents.
   function pickColor(dark) {
     const roll = Math.random();
     if (dark) {
-      return roll < 0.6 ? "110,180,255" /* electric blue */ : "80,220,225" /* cyan */;
+      return roll < 0.75 ? "235,235,235" /* soft white */ : "201,169,110" /* champagne gold */;
     }
-    return roll < 0.6 ? "60,110,220" : "20,150,165";
+    return roll < 0.75 ? "40,40,40" : "154,123,63";
   }
 
   function resize() {
@@ -434,7 +453,7 @@ function initBackgroundAnimation() {
           const mDist = Math.hypot(midX - mouse.x, midY - mouse.y);
           if (mDist < REPEL_RADIUS) alpha += (1 - mDist / REPEL_RADIUS) * 0.2;
         }
-        ctx.strokeStyle = `rgba(130,175,255,${Math.min(alpha, 0.5)})`;
+        ctx.strokeStyle = `rgba(200,200,200,${Math.min(alpha, 0.35)})`;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(ax, ay);
@@ -480,9 +499,9 @@ function initBackgroundAnimation() {
 
     const r = 320;
     const grad = ctx.createRadialGradient(glow.x, glow.y, 0, glow.x, glow.y, r);
-    grad.addColorStop(0, `rgba(90,190,255,${0.05 * glowIntensity})`);
-    grad.addColorStop(0.5, `rgba(90,160,255,${0.025 * glowIntensity})`);
-    grad.addColorStop(1, "rgba(90,160,255,0)");
+    grad.addColorStop(0, `rgba(255,255,255,${0.04 * glowIntensity})`);
+    grad.addColorStop(0.5, `rgba(201,169,110,${0.02 * glowIntensity})`);
+    grad.addColorStop(1, "rgba(201,169,110,0)");
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(glow.x, glow.y, r, 0, Math.PI * 2);
@@ -537,9 +556,8 @@ async function loadProfile() {
     return;
   }
 
-  document.title = `${data.full_name || "Portfolio"} — ${data.title || "QHSE Practitioner"}`;
+  // Page title + hero title ("Senior QHSE Manager") are set in index.html, not from the database.
   renderHeroName(data.full_name);
-  setText("hero-title", data.title);
   setText("hero-bio", data.bio);
   setText("about-location", data.location, "—");
   setText("about-location-hero", data.location, "—");
@@ -944,6 +962,7 @@ const projectModal = initDetailModal({
 });
 
 setCareerYears(CAREER_START_FALLBACK);
+initResumeLinks();
 // start the hero counters at 0 so they visibly count up
 document.querySelectorAll(".stat-num [data-count]").forEach((n) => {
   if (!n.dataset.value && /^\d+$/.test(n.textContent)) setCount(n, n.textContent.trim());
