@@ -59,14 +59,6 @@ main.nav-fade-out { opacity: 0; }
   src: url("fonts/archivo-variable.woff2") format("woff2-variations"), url("fonts/archivo-variable.woff2") format("woff2");
 }
 
-@font-face {
-  font-family: "Signature";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 400;
-  src: url("fonts/signature.woff2") format("woff2");
-}
-
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -329,14 +321,13 @@ html[data-theme="light"] .hero-frame {
   letter-spacing: 0.28em;
   text-transform: uppercase;
 }
-.eyebrow-line { width: 36px; height: 1px; background: var(--accent-2); }
 
 .hero h1 {
   font-family: var(--font-display);
-  font-size: clamp(2.8rem, 5.1vw, 4.9rem);
+  font-size: clamp(3.4rem, 7.4vw, 6.8rem);
   font-weight: 800;
   font-stretch: 80%;
-  line-height: 0.92;
+  line-height: 0.9;
   letter-spacing: -0.02em;
   text-transform: uppercase;
   color: var(--ink);
@@ -360,7 +351,7 @@ html[data-theme="light"] .hero-frame {
   text-transform: uppercase;
   color: var(--accent-2);
 }
-.hero-role-sep { width: 22px; height: 1px; background: var(--muted); opacity: 0.6; }
+.hero-role-sep { width: 4px; height: 4px; border-radius: 50%; background: var(--muted); opacity: 0.7; }
 .hero-typing {
   display: inline-flex;
   align-items: center;
@@ -378,54 +369,14 @@ html[data-theme="light"] .hero-frame {
 @keyframes blink { 50% { opacity: 0; } }
 
 .hero-headline {
-  max-width: 560px;
-  margin: 0 0 14px;
+  max-width: 520px;
+  margin: 0;
   font-family: var(--font-display);
   font-size: clamp(1.1rem, 1.6vw, 1.3rem);
   font-weight: 600;
   line-height: 1.4;
   color: var(--ink);
 }
-.hero-intro {
-  max-width: 540px;
-  margin: 0;
-  font-size: 0.98rem;
-  line-height: 1.7;
-  color: var(--muted);
-}
-.hero-signature {
-  margin: 10px 0 4px;
-  font-family: "Signature", "Brush Script MT", cursive;
-  font-size: clamp(2.4rem, 3.6vw, 3rem);
-  font-weight: 400;
-  line-height: 1.2;
-  color: var(--ink);
-  opacity: 0.92;
-  transform: rotate(-4deg);
-  transform-origin: left center;
-  user-select: none;
-}
-
-.hero-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 14px 0 18px; }
-.hero-actions .btn {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  padding: 13px 18px;
-}
-.hero-actions .btn-secondary { border-color: color-mix(in srgb, var(--ink) 28%, transparent); }
-.hero-actions .btn-secondary:hover { border-color: var(--accent-2); color: var(--accent-2); }
-
-.hero-location {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
 /* Portrait: anchored to the bottom, melting into the black frame */
 .hero-portrait {
   position: relative;
@@ -590,7 +541,6 @@ html[data-theme="light"] .hero-frame {
   .hero-social { padding: 0 20px 24px; }
   .hero-creds { padding: 18px 20px 20px; }
   .hero-creds-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .hero-actions .btn { flex: 1 1 100%; justify-content: center; }
   .hero-role-sep { display: none; }
   .hero-role { flex-direction: column; align-items: flex-start; gap: 2px; }
   .stat-item { padding: 4px 16px; }

@@ -76,21 +76,6 @@ function earliestYear(rows) {
   return Number.isFinite(min) ? min : null;
 }
 
-// Hero name: first line up to the middle initial, second line the surname
-function renderHeroName(fullName) {
-  const node = document.getElementById("hero-name");
-  if (!node || !fullName || !String(fullName).trim()) return;
-  const words = String(fullName).trim().split(/\s+/);
-  let cut = words.findIndex((w, i) => i > 0 && w.endsWith("."));
-  cut = cut === -1 ? Math.ceil(words.length / 2) : cut + 1;
-  if (cut >= words.length) cut = Math.max(1, words.length - 1);
-  node.replaceChildren(
-    el("span", { class: "name-line" }, [words.slice(0, cut).join(" ")]),
-    " ",
-    el("span", { class: "name-line" }, [words.slice(cut).join(" ")])
-  );
-}
-
 // ---- Resume links: download resume.pdf when it is published, otherwise fall back to the request form ----
 async function initResumeLinks() {
   const links = document.querySelectorAll(".js-resume-link");
@@ -556,12 +541,10 @@ async function loadProfile() {
     return;
   }
 
-  // Page title + hero title ("Senior QHSE Manager") are set in index.html, not from the database.
-  renderHeroName(data.full_name);
+  // Page title, hero name ("Josue Tolentino") and hero title are set in index.html, not from the database.
   setText("hero-bio", data.bio);
-  setText("about-location", data.location, "—");
-  setText("about-location-hero", data.location, "—");
-  setText("contact-location", data.location, "—");
+  setText("about-location", data.location, "");
+  setText("contact-location", data.location, "");
 
   const linkedinNode = document.getElementById("about-linkedin");
   if (linkedinNode && data.linkedin_url) {
@@ -701,7 +684,7 @@ async function loadCertifications(certModal) {
   setCount(document.getElementById("stat-certs"), data.length);
 
   const items = data.map((cert) => {
-    const metaParts = [cert.issuer, cert.issue_date].filter(Boolean).join(" — ");
+    const metaParts = [cert.issuer, cert.issue_date].filter(Boolean).join(" · ");
     const metaChildren = [metaParts];
     if (cert.credential_no) metaChildren.push(` · Credential No. ${cert.credential_no}`);
 
@@ -746,7 +729,7 @@ async function loadApprovals() {
   }
 
   const items = data.map((row) =>
-    el("li", null, [el("strong", null, [row.name]), row.issuer ? ` — ${row.issuer}` : ""])
+    el("li", null, [el("strong", null, [row.name]), row.issuer ? ` · ${row.issuer}` : ""])
   );
   container.replaceChildren(...items);
 }
@@ -803,7 +786,7 @@ async function loadExperience() {
     const cardChildren = [
       el("div", { class: "timeline-role" }, [titleText]),
     ];
-    if (metaParts.length) cardChildren.push(el("div", { class: "timeline-meta" }, [metaParts.join(" — ")]));
+    if (metaParts.length) cardChildren.push(el("div", { class: "timeline-meta" }, [metaParts.join(" · ")]));
     if (row.period) cardChildren.push(el("div", { class: "timeline-period" }, [row.period]));
     if (row.description) {
       const bullets = row.description.split("|").map((s) => s.trim()).filter(Boolean);
@@ -896,7 +879,7 @@ function initAccessForm() {
     const honeypot = (formData.get("website") || "").toString().trim();
     if (honeypot) {
       // Likely a bot. Pretend success, submit nothing.
-      status.textContent = "Thanks — your request has been sent.";
+      status.textContent = "Thanks, your request has been sent.";
       status.className = "form-status success";
       form.reset();
       return;
@@ -932,7 +915,7 @@ function initAccessForm() {
       return;
     }
 
-    status.textContent = "Thanks — your request has been sent. You'll hear back soon.";
+    status.textContent = "Thanks, your request has been sent. You'll hear back soon.";
     status.className = "form-status success";
     form.reset();
   });
