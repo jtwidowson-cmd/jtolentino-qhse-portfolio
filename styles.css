@@ -533,7 +533,7 @@ html[data-theme="light"] .hero-frame {
 @media (max-width: 860px) {
   .hero { padding: 16px 0 20px; }
   .hero-frame { border-radius: 22px; }
-  .hero-grid { grid-template-columns: 1fr; min-height: 0; }
+  .hero-grid { grid-template-columns: minmax(0, 1fr); min-height: 0; }
   .hero-portrait { order: -1; height: min(64vh, 520px); min-height: 0; }
   .hero-portrait img {
     object-position: 50% 10%;
@@ -972,4 +972,21 @@ html[data-theme="light"] .btn-primary:hover { background: #262626; box-shadow: 0
 
 @media (max-width: 480px) {
   #resume-request { padding: 9px 10px; }
+}
+
+/* Small Android phones (360-400px wide): scale the name and terminal line to the screen,
+   and keep the header within the viewport. */
+@media (max-width: 480px) {
+  .container { padding: 0 16px; }
+  .hero h1 { font-size: clamp(2.4rem, 13.5vw, 3.4rem); }
+  .pillar-typing { font-size: clamp(0.92rem, 4.4vw, 1.15rem); gap: 10px; white-space: nowrap; }
+  .pillar-caret { margin-left: -6px; }
+  .hero-headline { font-size: 1.05rem; }
+}
+@media (max-width: 400px) {
+  .header-inner { gap: 8px; }
+  .brand { font-size: 1.1rem; }
+  .header-actions { gap: 6px; margin-left: 8px; }
+  #resume-request { padding: 0; width: 40px; height: 40px; justify-content: center; border-radius: 50%; border: 1px solid var(--border); }
+  #resume-request .resume-label-short { display: none; }
 }
