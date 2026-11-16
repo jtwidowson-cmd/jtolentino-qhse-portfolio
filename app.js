@@ -858,7 +858,15 @@ function initAccessForm() {
 
     if (error) {
       console.error("Access request failed", error);
-      status.textContent = "Something went wrong. Please try again in a moment.";
+      const msg = String(error.message || "");
+      if (msg.includes("RATE_LIMIT")) {
+        // Server-side anti-spam limit (see access_requests_guard in Supabase)
+        status.textContent = msg.replace(/^RATE_LIMIT_[A-Z]+:\s*/, "");
+      } else if (error.code === "23514") {
+        status.textContent = "Please check your details: a valid work email is required, and fields must be within the length limits.";
+      } else {
+        status.textContent = "Something went wrong. Please try again in a moment.";
+      }
       status.className = "form-status error";
       return;
     }
