@@ -11,17 +11,6 @@
       ],
       "destination": "https://josh-portfolio.jt3rdegre3.com/:path*",
       "permanent": true
-    },
-    {
-      "source": "/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": "jt-portfolio.jt3rdegre3.com"
-        }
-      ],
-      "destination": "https://josh-portfolio.jt3rdegre3.com/:path*",
-      "permanent": true
     }
   ],
   "headers": [
