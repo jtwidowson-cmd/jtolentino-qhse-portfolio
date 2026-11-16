@@ -895,6 +895,13 @@ html[data-theme="light"] .btn-primary:hover { background: #262626; box-shadow: 0
   .page-hero { padding: 48px 0 30px; }
 }
 
+/* Header resume request: full label on wide screens, short on phones */
+.resume-label-short { display: none; }
+@media (max-width: 480px) {
+  .resume-label-full { display: none; }
+  .resume-label-short { display: inline; }
+}
+
 /* Footer */
 .site-footer { border-top: 1px solid var(--border); padding: 40px 0 36px; background: var(--bg); }
 .footer-inner {
@@ -960,9 +967,9 @@ html[data-theme="light"] .btn-primary:hover { background: #262626; box-shadow: 0
   .about-grid { grid-template-columns: 1fr; }
   .contact-grid { grid-template-columns: 1fr; }
   .section { padding: 46px 0; }
-  .btn-ghost.btn-small span, #resume-download { font-size: 0.8rem; }
+  .btn-ghost.btn-small span, #resume-request { font-size: 0.8rem; }
 }
 
 @media (max-width: 480px) {
-  #resume-download { padding: 9px 10px; }
+  #resume-request { padding: 9px 10px; }
 }

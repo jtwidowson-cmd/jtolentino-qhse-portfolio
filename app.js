@@ -103,23 +103,18 @@ function tidy(value) {
   return value == null ? value : String(value).replace(/\s*\u2014\s*/g, " · ");
 }
 
-// ---- Resume links: download resume.pdf when it is published, otherwise fall back to the request form ----
-async function initResumeLinks() {
-  const links = document.querySelectorAll(".js-resume-link");
-  if (!links.length) return;
-  let available = false;
-  try {
-    const res = await fetch("resume.pdf", { method: "HEAD", cache: "no-store" });
-    available = res.ok && /pdf/i.test(res.headers.get("content-type") || "");
-  } catch (_e) { available = false; }
-  if (available) return;
-  links.forEach((link) => {
-    link.setAttribute("href", "contact.html");
-    link.removeAttribute("download");
-    const label = link.querySelector(".js-resume-label");
-    if (label) label.textContent = label.textContent.replace(/^Download/, "Request");
-    link.setAttribute("title", "Request my resume via the contact form");
-  });
+// ---- Resume requests: the resume is shared on request, so "Request Resume" links open the
+// contact form with the message pre-filled (contact.html?request=resume).
+function initResumeRequest() {
+  const message = document.getElementById("message");
+  if (!message) return;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("request") !== "resume") return;
+  if (!message.value.trim()) {
+    message.value = "Hello Josue, I would like to request a copy of your resume. The role / project is: ";
+  }
+  const name = document.getElementById("name");
+  if (name) name.focus({ preventScroll: true });
 }
 
 function showEmptyState(container, message) {
@@ -896,7 +891,7 @@ const projectModal = initDetailModal({
 });
 
 setCareerYears(CAREER_YEARS_FALLBACK);
-initResumeLinks();
+initResumeRequest();
 initPillarTyping();
 // start the hero counters at 0 so they visibly count up
 document.querySelectorAll(".stat-num [data-count]").forEach((n) => {
