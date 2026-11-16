@@ -199,6 +199,38 @@ function initRevealAnimations() {
   targets.forEach((t) => observer.observe(t));
 }
 
+// ---- Hero pillars: typed one at a time, terminal style ----
+// The full list stays in the page as screen-reader text; this only animates the visible line.
+function initPillarTyping() {
+  const node = document.getElementById("pillar-text");
+  if (!node) return;
+  const pillars = (node.dataset.pillars || "").split("|").map((p) => p.trim()).filter(Boolean);
+  if (pillars.length < 2) return;
+  const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduced) { node.textContent = pillars.join(" · "); return; }
+
+  let index = 0;
+  let chars = 0;
+  let deleting = false;
+  node.textContent = "";
+
+  function tick() {
+    const word = pillars[index];
+    if (!deleting) {
+      chars += 1;
+      node.textContent = word.slice(0, chars);
+      if (chars === word.length) { deleting = true; setTimeout(tick, 1800); return; }
+      setTimeout(tick, 65 + Math.random() * 45); // slight jitter reads as real typing
+    } else {
+      chars -= 1;
+      node.textContent = word.slice(0, chars);
+      if (chars === 0) { deleting = false; index = (index + 1) % pillars.length; setTimeout(tick, 350); return; }
+      setTimeout(tick, 28);
+    }
+  }
+  setTimeout(tick, 700);
+}
+
 // ---- 3D tilt interaction (skill/credential/project/timeline cards, hero photo) ----
 // Any element with a "tilt" class gets a subtle pointer-tracked perspective
 // tilt plus a soft light sheen — the existing look and layout are untouched,
@@ -865,6 +897,7 @@ const projectModal = initDetailModal({
 
 setCareerYears(CAREER_YEARS_FALLBACK);
 initResumeLinks();
+initPillarTyping();
 // start the hero counters at 0 so they visibly count up
 document.querySelectorAll(".stat-num [data-count]").forEach((n) => {
   if (!n.dataset.value && /^\d+$/.test(n.textContent)) setCount(n, n.textContent.trim());
