@@ -601,6 +601,7 @@ function certModalRows(cert) {
   const rows = [];
   if (cert.issuer) rows.push(el("p", { class: "pre-line" }, [el("strong", null, ["Issuer: "]), tidy(cert.issuer)]));
   if (cert.issue_date) rows.push(el("p", null, [el("strong", null, ["Date: "]), cert.issue_date]));
+  if (cert.expiry_date) rows.push(el("p", null, [el("strong", null, ["Expiry: "]), cert.expiry_date]));
   if (cert.credential_no) rows.push(el("p", null, [el("strong", null, ["Credential No.: "]), cert.credential_no]));
   if (cert.category) rows.push(el("p", null, [el("strong", null, ["Category: "]), cert.category]));
   if (cert.framework) rows.push(el("p", null, [el("strong", null, ["Framework: "]), tidy(cert.framework)]));
@@ -611,7 +612,50 @@ function certModalRows(cert) {
     ]));
   }
   if (!rows.length) rows.push(el("p", null, ["Full certificate details coming soon."]));
+  if (Array.isArray(cert.preview_images) && cert.preview_images.length) {
+    const gallery = el("div", { class: "cert-preview" }, cert.preview_images.map((src, i) =>
+      el("a", { href: src, target: "_blank", rel: "noopener", class: "cert-preview-item", title: "Open full size" }, [
+        el("img", {
+          src, loading: "lazy", decoding: "async",
+          alt: `${tidy(cert.name)}: certificate preview ${i + 1} of ${cert.preview_images.length}`,
+        }),
+      ])
+    ));
+    rows.push(el("p", { class: "cert-preview-note" }, ["Verification copy. Personal identifiers are withheld for privacy."]));
+    rows.push(gallery);
+  }
   return rows;
+}
+
+function openCertModal(certModal, cert) {
+  certModal.open(tidy(cert.name), certModalRows(cert));
+  const panel = document.querySelector("#cert-modal .modal-panel");
+  if (panel) panel.classList.toggle("has-preview", Array.isArray(cert.preview_images) && cert.preview_images.length > 0);
+}
+
+// Category filter above the credentials grid (built from the categories present in the data).
+function renderCertFilters(items) {
+  const bar = document.getElementById("cert-filters");
+  if (!bar || !items.length) return;
+  const counts = new Map();
+  items.forEach((li) => {
+    const c = li.dataset.category || "Other";
+    counts.set(c, (counts.get(c) || 0) + 1);
+  });
+  const options = [["All", items.length], ...counts.entries()];
+  const buttons = options.map(([label, n]) => {
+    const btn = el("button", { type: "button", class: "filter-chip", "aria-pressed": label === "All" ? "true" : "false" }, [
+      `${label} `, el("span", { class: "filter-count" }, [String(n)]),
+    ]);
+    btn.addEventListener("click", () => {
+      buttons.forEach((b) => b.setAttribute("aria-pressed", "false"));
+      btn.setAttribute("aria-pressed", "true");
+      items.forEach((li) => { li.hidden = label !== "All" && (li.dataset.category || "Other") !== label; });
+    });
+    return btn;
+  });
+  bar.replaceChildren(...buttons);
+  bar.hidden = false;
 }
 
 function projectModalRows(project) {
@@ -631,7 +675,7 @@ async function loadCertifications(certModal) {
   if (!container && !stat) return;
   const { data, error } = await supabaseClient
     .from("certifications")
-    .select("name, issuer, issue_date, credential_no, verify_url, framework, category, sort_order")
+    .select("name, issuer, issue_date, expiry_date, preview_images, credential_no, verify_url, framework, category, sort_order")
     .order("sort_order", { ascending: true });
 
   if (error || !data || data.length === 0) {
@@ -658,20 +702,25 @@ async function loadCertifications(certModal) {
     if (cert.framework) {
       li.appendChild(el("div", { class: "card-framework" }, [tidy(cert.framework)]));
     }
+    li.dataset.category = cert.category || "Other";
+    if (Array.isArray(cert.preview_images) && cert.preview_images.length) {
+      li.appendChild(el("div", { class: "card-preview-flag" }, ["Certificate preview available"]));
+    }
     li.appendChild(el("div", { class: "card-expand-hint" }, ["View details →"]));
 
     if (certModal) {
-      li.addEventListener("click", () => certModal.open(tidy(cert.name), certModalRows(cert)));
+      li.addEventListener("click", () => openCertModal(certModal, cert));
       li.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          certModal.open(tidy(cert.name), certModalRows(cert));
+          openCertModal(certModal, cert);
         }
       });
     }
     return li;
   });
   container.replaceChildren(...items);
+  renderCertFilters(items);
 }
 
 // ---- Approvals & Accreditations ----
@@ -812,6 +861,16 @@ async function loadProjects(projectModal) {
 }
 
 // ---- Access request form ----
+// Confirmation shown after a successful enquiry (wording supplied by the site owner).
+const ENQUIRY_THANK_YOU =
+  "Thank you for your interest in my professional profile.\n\n" +
+  "Your recruitment enquiry has been successfully submitted. I will personally review the information provided and get back to you through your registered email address if the opportunity is relevant.\n\n" +
+  "I appreciate your time and consideration.";
+const ENQUIRY_TYPES = [
+  "Employment Opportunity", "Recruitment / Job Offer", "Project Opportunity",
+  "EPC / Contractor Enquiry", "Professional Collaboration", "Other",
+];
+
 function initAccessForm() {
   const form = document.getElementById("access-form");
   const submitBtn = document.getElementById("access-submit");
@@ -827,7 +886,7 @@ function initAccessForm() {
     const honeypot = (formData.get("website") || "").toString().trim();
     if (honeypot) {
       // Likely a bot. Pretend success, submit nothing.
-      status.textContent = "Thanks, your request has been sent.";
+      status.textContent = ENQUIRY_THANK_YOU;
       status.className = "form-status success";
       form.reset();
       return;
@@ -837,9 +896,18 @@ function initAccessForm() {
     const email = (formData.get("email") || "").toString().trim();
     const company = (formData.get("company") || "").toString().trim();
     const message = (formData.get("message") || "").toString().trim();
+    const jobTitle = (formData.get("job_title") || "").toString().trim();
+    const jobLocation = (formData.get("job_location") || "").toString().trim();
+    const enquiryType = (formData.get("enquiry_type") || "").toString().trim();
+    const jobDescription = (formData.get("job_description") || "").toString().trim();
 
     if (!name || !email || !company) {
       status.textContent = "Please fill in your name, work email, and company.";
+      status.className = "form-status error";
+      return;
+    }
+    if (form.elements.enquiry_type && !ENQUIRY_TYPES.includes(enquiryType)) {
+      status.textContent = "Please select an enquiry type.";
       status.className = "form-status error";
       return;
     }
@@ -852,6 +920,10 @@ function initAccessForm() {
       email: email.slice(0, 320),
       company: company.slice(0, 200),
       message: message.slice(0, 2000),
+      job_title: jobTitle.slice(0, 200) || null,
+      job_location: jobLocation.slice(0, 200) || null,
+      enquiry_type: enquiryType || null,
+      job_description: jobDescription.slice(0, 5000) || null,
     });
 
     submitBtn.disabled = false;
@@ -871,7 +943,7 @@ function initAccessForm() {
       return;
     }
 
-    status.textContent = "Thanks, your request has been sent. You'll hear back soon.";
+    status.textContent = ENQUIRY_THANK_YOU;
     status.className = "form-status success";
     form.reset();
   });
