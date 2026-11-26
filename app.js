@@ -129,10 +129,11 @@ function initThemeToggle() {
 
   let saved = null;
   try { saved = window.localStorage.getItem("theme"); } catch (_e) { /* storage may be unavailable */ }
-  const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
-  const initial = saved || (prefersLight ? "light" : "dark");
+  // Default look is the ivory + navy design; visitors can switch to the full navy dark theme.
+  const initial = saved === "dark" || saved === "light" ? saved : "light";
   root.setAttribute("data-theme", initial);
   toggle.setAttribute("aria-pressed", String(initial === "light"));
+  toggle.setAttribute("aria-label", initial === "light" ? "Switch to dark theme" : "Switch to light theme");
 
   toggle.addEventListener("click", () => {
     const next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
