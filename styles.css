@@ -1044,32 +1044,3 @@ html[data-theme="light"] .btn-primary:hover { background: #262626; box-shadow: 0
 .cert-preview-item:hover { border-color: var(--accent-2); }
 .cert-preview-note { font-size: 0.8rem; color: var(--muted); margin: 6px 0 0; }
 
-/* ===== Private enquiry dashboard (admin.html only) ===== */
-.admin-user { font-size: 0.85rem; color: var(--muted); }
-.admin-h2 { font-size: 1.1rem; margin: 0 0 4px; }
-.admin-muted { margin: 0; font-size: 0.88rem; color: var(--muted); word-break: break-word; }
-.admin-cv { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 22px; border-radius: var(--radius); margin-bottom: 28px; }
-.admin-cv-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-.admin-upload { position: relative; cursor: pointer; }
-.admin-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-.admin-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
-.admin-toolbar .filter-chips { margin: 0; }
-.admin-search { background: var(--bg); color: var(--ink); border: 1px solid var(--border); border-radius: 999px; padding: 10px 16px; min-height: 42px; font: inherit; font-size: 0.9rem; min-width: min(320px, 100%); }
-.enquiry-list { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 16px; }
-.enq-card { border-radius: var(--radius); padding: 22px; }
-.enq-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 16px; }
-.enq-name { margin: 0 0 4px; font-size: 1.15rem; }
-.enq-badge { flex: none; padding: 4px 12px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid var(--border); }
-.enq-badge.is-pending { color: var(--accent-2); }
-.enq-badge.is-reviewed { color: var(--ink); }
-.enq-badge.is-approved { color: #35c26a; border-color: rgba(53, 194, 106, 0.5); }
-.enq-badge.is-declined { color: #ff6b6b; border-color: rgba(255, 107, 107, 0.5); }
-.enq-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px 20px; margin-bottom: 14px; }
-.enq-field { display: flex; flex-direction: column; gap: 2px; font-size: 0.92rem; }
-.enq-label { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-2); }
-.enq-text { margin-bottom: 14px; }
-.enq-text p { margin: 4px 0 0; white-space: pre-wrap; color: var(--muted); font-size: 0.92rem; }
-.enq-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-top: 14px; border-top: 1px solid var(--border); }
-.enq-status { background: var(--bg); color: var(--ink); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; min-height: 40px; font: inherit; }
-.admin-empty { color: var(--muted); padding: 24px 0; }
-

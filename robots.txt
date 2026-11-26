@@ -1,6 +1,4 @@
 User-agent: *
 Allow: /
-Disallow: /admin
-Disallow: /admin.html
 
 Sitemap: https://josh-portfolio.jt3rdegre3.com/sitemap.xml
