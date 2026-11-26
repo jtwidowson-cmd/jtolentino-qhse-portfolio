@@ -40,14 +40,14 @@ def head(title, desc, path, preload_photo=False):
     url = f"{SITE}/{'' if path == 'index.html' else path.replace('.html', '')}"
     photo = '<link rel="preload" href="profile.webp" as="image" type="image/webp">\n' if preload_photo else ""
     return f"""<!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{title}</title>
 <meta name="description" content="{desc}">
 <meta name="color-scheme" content="dark light">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#0a1628">
 <link rel="canonical" href="{url}">
 
 <meta property="og:type" content="profile">
@@ -98,7 +98,7 @@ def header(page):
         {ICON_DOWNLOAD}
         <span class="resume-label-full">Request Resume</span><span class="resume-label-short">Resume</span>
       </a>
-      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to light theme" aria-pressed="false">
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to dark theme" aria-pressed="true">
         <svg class="icon icon-moon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
         <svg class="icon icon-sun" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.6"/><path d="M12 2.5v2.4M12 19.1v2.4M4.6 4.6l1.7 1.7M17.7 17.7l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.6 19.4l1.7-1.7M17.7 6.3l1.7-1.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
       </button>
